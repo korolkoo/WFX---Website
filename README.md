@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+WFX.stl - Modelagem Técnica para Alta Joalheria
+O WFX.stl é uma plataforma de e-commerce de alta performance especializada na venda de arquivos digitais (STL e 3DM) para a indústria de joias. O projeto combina uma experiência visual imersiva em 3D com um fluxo de compra otimizado e seguro.
 
-## Getting Started
+🚀 Tecnologias Utilizadas
+Framework: Next.js 15+ (App Router)
+Linguagem: TypeScript
+Estilização: Tailwind CSS e Lucide React (Ícones)
+Banco de Dados & Auth: Supabase (PostgreSQL)
+Visualização 3D: Three.js via @react-three/fiber e @react-three/drei
+Gerenciamento de Estado: Zustand (Carrinho de compras)
+Pagamentos: Stripe API
 
-First, run the development server:
+✨ Funcionalidades Principais
+💎 Experiência do Produto
+Visualizador 3D em Tempo Real: Visualização de modelos GLB/STL com troca dinâmica de materiais (Ouro, Prata, Pedras) diretamente no navegador.
+Galeria Multimídia: Suporte para vídeos 360°, vídeos reais e fotos em alta resolução.
+Cálculo de Peso Automático: Sistema inteligente que calcula o peso estimado da peça final em diferentes metais (Latão, Prata, Ouro 10k e 18k) baseado no volume do arquivo digital.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+🛒 E-commerce & Filtros
+Busca Global Inteligente: Campo de busca que varre títulos, descrições, especificações de pedras e tamanhos.
+Filtros Avançados: Filtragem por categorias (Anéis, Brincos, etc.) e finalidade (Prototipagem ou Molde de Borracha).
+Carrinho Persistente: Gerenciamento de itens via Zustand com sincronização local.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+🔐 Segurança e LGPD
+Arquitetura Serverless: Segurança nas transações e proteção de dados sensíveis.
+Conformidade: Estrutura preparada para LGPD com termos de uso específicos para propriedade intelectual de arquivos digitais.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+🛠️ Estrutura do Banco de Dados (Supabase)
+A tabela principal products contém os seguintes campos:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+title, description, category, price
+image_url, file_url, glb_url
+usage: (Enum: Prototipagem / Borracha)
+stones_info: (String formatada para listagem de gemas)
+volume: (Float para cálculo de peso)
+size: (String de dimensões)
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Desenvolvido por Yuri Korolko.
+Ideias de Gustavo Lamonatto Postal.
+Design da logo de Vithoria Bertoncelli.
