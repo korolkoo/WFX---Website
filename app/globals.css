@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* --- MODO CLARO (LIGHT) --- */
+:root {
+  --bg: #ffffff;
+  --card: #f8f9fa;
+  --text: #003366;       /* Azul Escuro (Engenharia) */
+  --primary: #0044cc;    /* Azul Royal (Destaque) */
+  --border: #e2e8f0;
+  --muted: #64748b;
+}
+
+/* --- MODO ESCURO (DARK) --- */
+.dark {
+  --bg: #020617;         /* Preto Azulado */
+  --card: #0f172a;       /* Azul Noturno */
+  --text: #f8fafc;       /* Branco Gelo */
+  --primary: #3b82f6;    /* Azul Neon */
+  --border: #1e293b;
+  --muted: #94a3b8;
+}
+
+/* Aplicação Suave */
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
