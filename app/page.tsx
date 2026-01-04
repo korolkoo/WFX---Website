@@ -340,16 +340,22 @@ function HomeContent() {
         </section>
       </main>
 
-      {/* FOOTER - Otimizado para troca de tema rápida */}
-      <footer id="sobre" className="bg-wfx-bg text-wfx-text border-t-2 border-wfx-text/10 dark:border-wfx-text/20 py-16 transition-colors duration-150 ease-out">
+      {/* FOOTER */}
+      <footer id="sobre" className="bg-wfx-bg text-wfx-text border-t border-wfx-text/10 dark:border-slate-800/50 py-16 transition-colors duration-150 ease-out">
         <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-3 gap-12">
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <Image src="/logo.png" alt="WFX Logo Footer" width={90} height={35} className="object-contain" />
+              <Image 
+                src="/logo.png" 
+                alt="WFX Logo Footer" 
+                width={90} 
+                height={35} 
+                className="object-contain" 
+              />
               <div className="w-2 h-2 bg-wfx-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
             </div>
             <p className="text-wfx-muted text-sm leading-relaxed max-w-xs">
-              Especialistas em modelagem 3D técnica para alta joalheria. Garantindo precisão para prototipagem e moldes de borracha.
+              Especialista em modelagem 3D técnica para alta joalheria. Garantindo precisão para prototipagem e moldes de borracha.
             </p>
           </div>
 
@@ -378,7 +384,7 @@ function HomeContent() {
               <a 
                 href="https://instagram.com/yurikorolko" 
                 target="_blank" 
-                className="inline-flex items-center gap-3 bg-wfx-card border border-wfx-text/20 px-5 py-2.5 rounded-full shadow-sm transition-all duration-150 ease-out transform-gpu hover:shadow-md hover:border-wfx-primary/50 hover:-translate-y-1 active:scale-95 group"
+                className="inline-flex items-center gap-3 bg-wfx-card border border-wfx-text/10 px-5 py-2.5 rounded-full shadow-sm transition-all duration-150 ease-out transform-gpu hover:shadow-md hover:border-wfx-primary/50 hover:-translate-y-1 active:scale-95 group"
               >
                 <div className="p-1 rounded-full bg-wfx-text/5 group-hover:bg-wfx-primary/10 transition-colors duration-150">
                   <Code size={16} className="text-wfx-primary" />
@@ -388,9 +394,8 @@ function HomeContent() {
             </div>
           </div>
         </div>
-
-        <div className="max-w-7xl mx-auto px-6 mt-16 pt-8 border-t-2 border-wfx-text/10 dark:border-wfx-text/20 flex flex-col md:flex-row justify-between items-center text-[10px] font-black text-wfx-muted uppercase tracking-[0.3em]">
-          <p>© 2025 WFX - Todos os direitos reservados.</p>
+        <div className="max-w-7xl mx-auto px-6 mt-16 pt-8 border-t border-wfx-text/10 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center text-[10px] font-black text-wfx-muted uppercase tracking-[0.3em]">
+          <p>© 2026 WFX - Todos os direitos reservados.</p>
           <p className="mt-2 md:mt-0">Brasil / Rio Grande do Sul</p>
         </div>
       </footer>

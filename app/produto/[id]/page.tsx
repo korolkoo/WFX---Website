@@ -2,20 +2,23 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { useEffect, useState, Suspense, use, useMemo, useRef } from 'react';
+// Removido o useRouter pois não teremos botão de voltar
 import { useTheme } from "next-themes";
 import { Moon, Sun, ShoppingBag, Instagram, Mail, Phone, Code, ChevronLeft, ChevronRight, Maximize2, AlertCircle, Menu, X, Ruler, Gem, Layers, Scale } from "lucide-react"; 
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Stage, useGLTF, Loader } from "@react-three/drei"; 
 import * as THREE from 'three'; 
 import Link from 'next/link';
+import Image from 'next/image'; // Importação correta do Image
 import { useCartStore } from "@/store/useCartStore";
 import CartSidebar from "@/components/CartSidebar";
 
+// --- CONFIGURAÇÃO DO BANCO DE DADOS (SUPABASE) ---
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// --- TIPAGEM ---
+// --- DEFINIÇÃO DOS TIPOS (TYPESCRIPT) ---
 interface Product {
   id: number;
   title: string;
@@ -34,7 +37,7 @@ interface Product {
   stones_info?: string;
 }
 
-// --- DENSIDADES ---
+// --- CONSTANTES FÍSICAS (DENSIDADE g/cm³) ---
 const DENSITIES = { 
   brass: 8.5,     // Latão
   silver: 10.0,   // Prata 925
@@ -42,7 +45,7 @@ const DENSITIES = {
   gold18k: 15.0   // Ouro 18k
 };
 
-// --- MATERIAIS (Three.js) ---
+// --- MATERIAIS PARA O RENDERIZADOR 3D ---
 const MATERIALS = {
   gold: new THREE.MeshPhysicalMaterial({ color: "#FFD700", metalness: 1.0, roughness: 0.15, clearcoat: 1.0 }),
   silver: new THREE.MeshPhysicalMaterial({ color: "#FFFFFF", metalness: 1.0, roughness: 0.05, clearcoat: 1.0 }),
@@ -55,18 +58,24 @@ const MATERIALS = {
   onyx: new THREE.MeshPhysicalMaterial({ color: "#050505", metalness: 0, roughness: 0.1, clearcoat: 1.0 }),
 };
 
-// --- VISUALIZADOR 3D ---
+// --- COMPONENTE: VISUALIZADOR 3D ---
 function ModelViewer({ url, config }: { url: string, config?: Record<string, string> }) {
   const { scene } = useGLTF(url) as any;
+  
+  // Lógica para aplicar materiais automaticamente nas camadas do 3D
   useMemo(() => {
     const cloned = scene.clone(true);
     cloned.traverse((child: any) => {
       if (child.isMesh) {
         let materialToApply = null;
+        
+        // 1. Tenta pegar configuração manual do banco
         if (config && config[child.name]) {
            const matKey = config[child.name] as keyof typeof MATERIALS;
            if (MATERIALS[matKey]) materialToApply = MATERIALS[matKey];
         }
+        
+        // 2. Se não achar, tenta adivinhar pelo nome do layer (ex: "prata", "pedra")
         if (!materialToApply) {
             let fullID = child.name.toLowerCase();
             if (fullID.includes("prata") || fullID.includes("silver")) materialToApply = MATERIALS.silver;
@@ -75,6 +84,7 @@ function ModelViewer({ url, config }: { url: string, config?: Record<string, str
             else if (fullID.includes("diamante") || fullID.includes("pedra")) materialToApply = MATERIALS.diamond;
             else materialToApply = MATERIALS.gold;
         }
+        
         if (materialToApply) child.material = materialToApply;
         child.castShadow = true;
         child.receiveShadow = true;
@@ -82,15 +92,18 @@ function ModelViewer({ url, config }: { url: string, config?: Record<string, str
     });
     scene.children = cloned.children;
   }, [scene, config]);
+
   return <Stage environment="city" intensity={1} shadows={false} adjustCamera={false}><primitive object={scene} /></Stage>;
 }
 
+// --- PÁGINA DO PRODUTO (COMPONENTE PRINCIPAL) ---
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { addItem, totalItems, toggleCart } = useCartStore();
   const [product, setProduct] = useState<Product | null>(null);
   const { theme, setTheme } = useTheme();
   
+  // Estados de controle da interface
   const [mediaIndex, setMediaIndex] = useState(0); 
   const [availableMedia, setAvailableMedia] = useState<any[]>([]);
   const [mounted, setMounted] = useState(false);
@@ -98,12 +111,14 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const mediaContainerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // --- BUSCA DOS DADOS NO SUPABASE ---
   useEffect(() => {
     setMounted(true);
     async function fetchProduct() {
       const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
       if (data) {
         setProduct(data as Product);
+        // Organiza a mídia disponível (3D > Vídeos > Foto)
         const media = [];
         if (data.glb_url || data.file_url) media.push({ type: '3d', label: 'Visualização 3D' });
         if (data.video_360_url) media.push({ type: 'video360', label: 'Vídeo 360°', url: data.video_360_url });
@@ -114,22 +129,47 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
       if (error) console.error("Erro:", error);
     }
     fetchProduct();
+
+    // Monitora se o usuário entrou/saiu do modo tela cheia
     const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, [id]);
 
+  // --- PERFORMANCE: LISTA DE PEDRAS OTIMIZADA (MEMO) ---
+  const stonesList = useMemo(() => {
+    if (!product?.stones_info) return null;
+    return product.stones_info.split('+').map((stoneStr, idx) => {
+        const cleanStr = stoneStr.trim();
+        // Regex para extrair qtd e nome: "10 un. Zircônia..."
+        const match = cleanStr.match(/^(\?|\d+)\s*un\.\s*(.+)\s*\(Total:\s*([\d\.]+)g\)/i);
+        if (match) {
+            return (
+                <div key={idx} className="px-4 py-3 flex items-center gap-3 text-sm">
+                    <span className="bg-wfx-primary/10 text-wfx-primary border border-wfx-primary/20 px-2 py-0.5 rounded-full text-xs font-bold">{match[1]}x</span>
+                    <span className="text-wfx-text/80 leading-tight">{match[2]}</span>
+                </div>
+            )
+        }
+        return <div key={idx} className="px-4 py-3 text-xs text-wfx-muted">{cleanStr}</div>
+    });
+  }, [product?.stones_info]);
+
+  // Tela de Carregamento
   if (!mounted || !product) return <div className="min-h-screen bg-wfx-bg flex items-center justify-center"><div className="w-8 h-8 border-2 border-wfx-primary border-t-transparent rounded-full animate-spin"></div></div>;
 
+  // Helpers de Mídia
   const currentMedia = availableMedia[mediaIndex] || { type: 'image' };
   const handleNextMedia = () => setMediaIndex((prev) => (prev + 1) % availableMedia.length);
   const handlePrevMedia = () => setMediaIndex((prev) => (prev - 1 + availableMedia.length) % availableMedia.length);
+  
   const toggleFullscreen = () => {
     if (!mediaContainerRef.current) return;
     if (!document.fullscreenElement) mediaContainerRef.current.requestFullscreen().catch(err => console.error(err));
     else document.exitFullscreen();
   };
   
+  // Helpers de Cálculo de Peso
   const getStoneWeight = (infoString?: string) => {
     if (!infoString) return 0;
     try {
@@ -153,7 +193,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     return (calculateMetalWeight(density) + stonesTotalWeight).toFixed(2);
   };
 
-  // --- HANDLER PARA SCROLL SUAVE (IGUAL AO DA HOME) ---
+  // Scroll suave para âncoras
   const handleSobreClick = (e: React.MouseEvent) => {
     e.preventDefault();
     setMobileMenuOpen(false);
@@ -167,10 +207,12 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     <div className="min-h-screen bg-wfx-bg text-wfx-text font-sans transition-colors pb-0 flex flex-col">
       <CartSidebar />
       
-      {/* HEADER */}
+      {/* --- HEADER --- */}
       <header className="border-b border-wfx-border sticky top-0 bg-wfx-bg/80 backdrop-blur-md z-50 h-20">
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-full flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 cursor-pointer"><span className="text-xl md:text-2xl font-bold tracking-tighter">WFX.stl</span><div className="w-2 h-2 bg-wfx-primary rounded-full animate-pulse"></div></Link>
+          <Link href="/" className="flex items-center gap-2 cursor-pointer">
+             <Image src="/logo.png" alt="WFX Logo" width={100} height={40} priority className="object-contain" />
+          </Link>
           <nav className="hidden md:flex gap-8 text-sm font-medium text-wfx-muted">
             <Link href="/" className="hover:text-wfx-primary transition-colors">COLEÇÃO 2025</Link>
             <Link href="/?action=lancamentos" className="hover:text-wfx-primary transition-colors">LANÇAMENTOS</Link>
@@ -187,6 +229,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           <div className="md:hidden absolute top-20 left-0 w-full bg-wfx-bg border-b border-wfx-border shadow-2xl animate-in slide-in-from-top-5 z-40 text-wfx-text">
             <nav className="flex flex-col p-6 space-y-4 text-center font-bold text-lg">
               <Link href="/" onClick={() => setMobileMenuOpen(false)} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">COLEÇÃO 2025</Link>
+              <Link href="/?action=lancamentos" onClick={() => setMobileMenuOpen(false)} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">LANÇAMENTOS</Link>
               <Link href="/atendimento" onClick={() => setMobileMenuOpen(false)} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">ATENDIMENTO EXCLUSIVO</Link>
               <a href="#sobre" onClick={handleSobreClick} className="py-2 hover:text-wfx-primary">SOBRE</a>
             </nav>
@@ -194,17 +237,28 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
         )}
       </header>
 
-      {/* MAIN CONTENT */}
-      <main className="flex-1 flex flex-col justify-center max-w-7xl mx-auto px-6 pt-9 pb-24 w-full">
+      {/* --- ÁREA PRINCIPAL (MAIN) --- 
+          pt-8 / pb-8: Garante o "respiro" simétrico de 32px no topo e em baixo.
+          min-h-[calc(100vh-80px)]: Garante que o footer fique escondido (below fold).
+      */}
+      <main className="flex-1 flex flex-col justify-start max-w-7xl mx-auto px-6 pt-8 pb-8 w-full min-h-[calc(100vh-80px)]">
+        
+        {/* SEM BOTÃO VOLTAR */}
+
         {/* GRID PRINCIPAL */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
           
           {/* === COLUNA ESQUERDA (Mídia + Contato) === */}
           <div className="lg:col-span-8 flex flex-col gap-6">
             
-            {/* Visualizador 3D / Video / Foto */}
+            {/* CONTAINER 3D / FOTO */}
             <div>
-                <div ref={mediaContainerRef} className={`relative w-full bg-wfx-bg border border-wfx-border rounded-lg overflow-hidden shadow-inner group flex items-center justify-center transition-all ${isFullscreen ? 'fixed inset-0 z-[100] h-screen border-none rounded-none' : 'aspect-square md:h-[700px] md:aspect-auto'}`}>
+                {/* CÁLCULO DE ALTURA SIMÉTRICO:
+                   md:h-[calc(100vh-340px)]
+                   - Isso calcula: Altura Total (100vh) MENOS (Header + Margem Topo + Margem Baixo + Cartão Contato).
+                   - Resultado: O 3D se ajusta para que sobre exatamente 32px no final da tela, igual ao topo.
+                */}
+                <div ref={mediaContainerRef} className={`relative w-full bg-wfx-bg border border-wfx-border rounded-lg overflow-hidden shadow-inner group flex items-center justify-center transition-all ${isFullscreen ? 'fixed inset-0 z-[100] h-screen border-none rounded-none' : 'aspect-square md:aspect-auto md:h-[calc(100vh-340px)] min-h-[400px]'}`}>
                 {currentMedia.type === '3d' && viewerUrl && (
                     <>
                     <Canvas dpr={[1, 1.5]} camera={{ position: [25, 25, 25], fov: 40 }} className="h-full w-full">
@@ -234,6 +288,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 )}
                 </div>
                 
+                {/* Dots de navegação */}
                 <div className="flex justify-center gap-2 mt-4">
                   {availableMedia.map((media, idx) => (
                     <button key={idx} onClick={() => setMediaIndex(idx)} className={`h-1.5 rounded-full transition-all ${mediaIndex === idx ? 'w-8 bg-wfx-primary' : 'w-2 bg-slate-300 dark:bg-slate-700 hover:bg-wfx-primary/50'}`} />
@@ -276,7 +331,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                         <div className="flex gap-2 flex-wrap">
                             {product.usage === 'Prototipagem' && (<div className="flex items-center gap-2 px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded text-amber-600 text-[10px] font-bold uppercase"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Prototipagem</div>)}
                             {product.usage === 'Borracha' && (<div className="flex items-center gap-2 px-2 py-1 bg-slate-500/10 border border-slate-500/20 rounded text-slate-600 text-[10px] font-bold uppercase"><span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span> Molde Borracha</div>)}
-                            <div className="flex items-center gap-2 px-2 py-1 bg-blue-500/10 border border-blue-500/20 rounded text-blue-600 text-[10px] font-bold uppercase"><Code size={10} /> STL + 3DM</div>
+                            <div className="flex items-center gap-2 px-2 py-1 bg-blue-500/10 border border-blue-500/20 rounded text-blue-600 text-[10px] font-bold uppercase"><Code size={10} /> STL</div>
                         </div>
                       </div>
                   </div>
@@ -306,19 +361,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                                 <span className="text-[10px] font-bold text-wfx-muted uppercase tracking-wider">Configuração de Pedras</span>
                             </div>
                             <div className="divide-y divide-wfx-border/30">
-                                {product.stones_info.split('+').map((stoneStr, idx) => {
-                                      const cleanStr = stoneStr.trim();
-                                      const match = cleanStr.match(/^(\?|\d+)\s*un\.\s*(.+)\s*\(Total:\s*([\d\.]+)g\)/i);
-                                      if (match) {
-                                          return (
-                                              <div key={idx} className="px-4 py-3 flex items-center gap-3 text-sm">
-                                                  <span className="bg-wfx-primary/10 text-wfx-primary border border-wfx-primary/20 px-2 py-0.5 rounded-full text-xs font-bold">{match[1]}x</span>
-                                                  <span className="text-wfx-text/80 leading-tight">{match[2]}</span>
-                                              </div>
-                                          )
-                                      }
-                                      return <div key={idx} className="px-4 py-3 text-xs text-wfx-muted">{cleanStr}</div>
-                                })}
+                                {stonesList}
                             </div>
                         </div>
                       )}
@@ -391,8 +434,65 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
         </div>
       </main>
 
-      {/* FOOTER - ID "sobre" ADICIONADO PARA FUNCIONAR O SCROLL */}
-      <footer id="sobre" className="bg-[#020617] text-white border-t border-slate-800 py-16"><div className="max-w-7xl mx-auto px-6 grid md:grid-cols-3 gap-12"><div className="space-y-4"><div className="flex items-center gap-2"><span className="text-2xl font-bold tracking-tighter">WFX.stl</span><div className="w-2 h-2 bg-blue-500 rounded-full"></div></div><p className="text-slate-400 text-sm leading-relaxed max-w-xs">Especialistas em modelagem 3D técnica para alta joalheria. Garantindo precisão para prototipagem e moldes de borracha.</p></div><div className="space-y-4"><h4 className="font-bold text-sm uppercase tracking-widest text-blue-500">Contato & Suporte</h4><ul className="space-y-3 text-slate-300"><li className="flex items-center gap-3"><Instagram size={18} className="text-white" /><a href="https://instagram.com/WFX" target="_blank" className="hover:text-blue-400 transition-colors">@WFX</a></li><li className="flex items-center gap-3"><Mail size={18} className="text-white" /><a href="mailto:wfxjoias@gmail.com" className="hover:text-blue-400 transition-colors">wfxjoias@gmail.com</a></li><li className="flex items-center gap-3"><Phone size={18} className="text-white" /><a href="https://wa.me/5554996704599" target="_blank" className="hover:text-blue-400 transition-colors">+55 (54) 99670-4599</a></li></ul></div><div className="md:text-right flex flex-col md:items-end justify-between"><div className="hidden md:block"></div><div className="space-y-2"><span className="text-xs font-mono text-slate-500 uppercase tracking-wider block">Design & Development</span><a href="https://instagram.com/yurikorolko" target="_blank" className="inline-flex items-center gap-2 bg-slate-900 border border-slate-700 px-4 py-2 rounded-md hover:border-blue-500 hover:text-blue-400 transition-all group"><Code size={16} className="text-slate-400 group-hover:text-blue-500" /><span className="font-bold">@yurikorolko</span></a></div></div></div><div className="max-w-7xl mx-auto px-6 mt-16 pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center text-xs text-slate-600"><p>© 2025 WFX - Todos os direitos reservados.</p><p>Brasil / Rio Grande do Sul</p></div></footer>
+      {/* FOOTER */}
+            <footer id="sobre" className="bg-wfx-bg text-wfx-text border-t border-wfx-text/10 dark:border-slate-800/50 py-16 transition-colors duration-150 ease-out">
+              <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-3 gap-12">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Image 
+                      src="/logo.png" 
+                      alt="WFX Logo Footer" 
+                      width={90} 
+                      height={35} 
+                      className="object-contain" 
+                    />
+                    <div className="w-2 h-2 bg-wfx-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
+                  </div>
+                  <p className="text-wfx-muted text-sm leading-relaxed max-w-xs">
+                    Especialista em modelagem 3D técnica para alta joalheria. Garantindo precisão para prototipagem e moldes de borracha.
+                  </p>
+                </div>
+      
+                <div className="space-y-4">
+                  <h4 className="font-bold text-sm uppercase tracking-widest text-wfx-primary">Contato & Suporte</h4>
+                  <ul className="space-y-3 text-wfx-muted">
+                    <li className="flex items-center gap-3">
+                      <Instagram size={18} />
+                      <a href="https://instagram.com/WFX" target="_blank" className="hover:text-wfx-primary transition-colors">@WFX</a>
+                    </li>
+                    <li className="flex items-center gap-3">
+                      <Mail size={18} />
+                      <a href="mailto:wfxjoias@gmail.com" className="hover:text-wfx-primary transition-colors">wfxjoias@gmail.com</a>
+                    </li>
+                    <li className="flex items-center gap-3">
+                      <Phone size={18} />
+                      <a href="https://wa.me/5554996704599" target="_blank" className="hover:text-wfx-primary transition-colors">+55 (54) 99670-4599</a>
+                    </li>
+                  </ul>
+                </div>
+      
+                <div className="md:text-right flex flex-col md:items-end justify-between">
+                  <div className="hidden md:block"></div>
+                  <div className="space-y-3">
+                    <span className="text-[10px] font-bold text-wfx-muted uppercase tracking-[0.2em] block">Design & Development</span>
+                    <a 
+                      href="https://instagram.com/yurikorolko" 
+                      target="_blank" 
+                      className="inline-flex items-center gap-3 bg-wfx-card border border-wfx-text/10 px-5 py-2.5 rounded-full shadow-sm transition-all duration-150 ease-out transform-gpu hover:shadow-md hover:border-wfx-primary/50 hover:-translate-y-1 active:scale-95 group"
+                    >
+                      <div className="p-1 rounded-full bg-wfx-text/5 group-hover:bg-wfx-primary/10 transition-colors duration-150">
+                        <Code size={16} className="text-wfx-primary" />
+                      </div>
+                      <span className="font-bold text-sm tracking-tight transition-colors duration-150 group-hover:text-wfx-primary">@yurikorolko</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <div className="max-w-7xl mx-auto px-6 mt-16 pt-8 border-t border-wfx-text/10 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center text-[10px] font-black text-wfx-muted uppercase tracking-[0.3em]">
+                <p>© 2026 WFX - Todos os direitos reservados.</p>
+                <p className="mt-2 md:mt-0">Brasil / Rio Grande do Sul</p>
+              </div>
+            </footer>
     </div>
   );
 }

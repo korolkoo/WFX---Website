@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WFX.stl - Engineering Jewelry",
-  description: "Marketplace de arquivos STL para joalheria",
+  title: "WFX | Modelagem 3D para Alta Joalharia",
+  description: "Marketplace premium de arquivos STL validados para prototipagem e moldes de borracha.",
 };
 
 export default function RootLayout({

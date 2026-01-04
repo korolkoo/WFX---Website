@@ -115,7 +115,7 @@ export default function LoginPage() {
         <p className="text-center text-slate-600 text-xs mt-8">
           Sistema protegido por criptografia de ponta a ponta.
           <br />
-          © 2025 WFX Systems.
+          © 2026 WFX Systems.
         </p>
 
       </div>

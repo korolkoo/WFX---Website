@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image"; // 1. Importação adicionada
 import { useEffect, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation"; // Import novo
+import { useSearchParams } from "next/navigation";
 import { Check, Mail, ArrowRight, ShoppingBag, HelpCircle, Download } from "lucide-react";
 import { useCartStore } from "@/store/useCartStore";
 
@@ -135,9 +136,16 @@ export default function Sucesso() {
 
         <div className="text-center mt-8 opacity-40 hover:opacity-100 transition-opacity">
           <Link href="/" className="flex items-center justify-center gap-2">
-             <span className="text-xl font-bold tracking-tighter text-gray-600">WFX.stl</span>
+             <Image 
+               src="/logo.png" 
+               alt="WFX Logo" 
+               width={90}
+               height={35} 
+               className="object-contain"
+             />
           </Link>
         </div>
+
       </div>
     </div>
   );
