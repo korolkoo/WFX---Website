@@ -2,23 +2,26 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { useEffect, useState, Suspense, use, useMemo, useRef } from 'react';
-// Removido o useRouter pois não teremos botão de voltar
 import { useTheme } from "next-themes";
 import { Moon, Sun, ShoppingBag, Instagram, Mail, Phone, Code, ChevronLeft, ChevronRight, Maximize2, AlertCircle, Menu, X, Ruler, Gem, Layers, Scale } from "lucide-react"; 
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Stage, useGLTF, Loader } from "@react-three/drei"; 
 import * as THREE from 'three'; 
 import Link from 'next/link';
-import Image from 'next/image'; // Importação correta do Image
+import Image from 'next/image';
 import { useCartStore } from "@/store/useCartStore";
 import CartSidebar from "@/components/CartSidebar";
 
-// --- CONFIGURAÇÃO DO BANCO DE DADOS (SUPABASE) ---
+// ==============================================================================
+// 1. CONFIGURAÇÃO E INTEGRAÇÃO (SUPABASE)
+// ==============================================================================
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// --- DEFINIÇÃO DOS TIPOS (TYPESCRIPT) ---
+// ==============================================================================
+// 2. DEFINIÇÃO DE TIPOS E INTERFACES
+// ==============================================================================
 interface Product {
   id: number;
   title: string;
@@ -37,7 +40,9 @@ interface Product {
   stones_info?: string;
 }
 
-// --- CONSTANTES FÍSICAS (DENSIDADE g/cm³) ---
+// ==============================================================================
+// 3. CONSTANTES E MATERIAIS 3D
+// ==============================================================================
 const DENSITIES = { 
   brass: 8.5,     // Latão
   silver: 10.0,   // Prata 925
@@ -45,7 +50,6 @@ const DENSITIES = {
   gold18k: 15.0   // Ouro 18k
 };
 
-// --- MATERIAIS PARA O RENDERIZADOR 3D ---
 const MATERIALS = {
   gold: new THREE.MeshPhysicalMaterial({ color: "#FFD700", metalness: 1.0, roughness: 0.15, clearcoat: 1.0 }),
   silver: new THREE.MeshPhysicalMaterial({ color: "#FFFFFF", metalness: 1.0, roughness: 0.05, clearcoat: 1.0 }),
@@ -58,24 +62,24 @@ const MATERIALS = {
   onyx: new THREE.MeshPhysicalMaterial({ color: "#050505", metalness: 0, roughness: 0.1, clearcoat: 1.0 }),
 };
 
-// --- COMPONENTE: VISUALIZADOR 3D ---
+// ==============================================================================
+// 4. COMPONENTE: VISUALIZADOR 3D (R3F)
+// ==============================================================================
 function ModelViewer({ url, config }: { url: string, config?: Record<string, string> }) {
   const { scene } = useGLTF(url) as any;
   
-  // Lógica para aplicar materiais automaticamente nas camadas do 3D
+  // Aplica materiais automaticamente com base no nome das meshes ou config do banco
   useMemo(() => {
     const cloned = scene.clone(true);
     cloned.traverse((child: any) => {
       if (child.isMesh) {
         let materialToApply = null;
-        
-        // 1. Tenta pegar configuração manual do banco
+        // Prioridade 1: Configuração manual do banco
         if (config && config[child.name]) {
            const matKey = config[child.name] as keyof typeof MATERIALS;
            if (MATERIALS[matKey]) materialToApply = MATERIALS[matKey];
         }
-        
-        // 2. Se não achar, tenta adivinhar pelo nome do layer (ex: "prata", "pedra")
+        // Prioridade 2: Detecção automática pelo nome
         if (!materialToApply) {
             let fullID = child.name.toLowerCase();
             if (fullID.includes("prata") || fullID.includes("silver")) materialToApply = MATERIALS.silver;
@@ -84,7 +88,6 @@ function ModelViewer({ url, config }: { url: string, config?: Record<string, str
             else if (fullID.includes("diamante") || fullID.includes("pedra")) materialToApply = MATERIALS.diamond;
             else materialToApply = MATERIALS.gold;
         }
-        
         if (materialToApply) child.material = materialToApply;
         child.castShadow = true;
         child.receiveShadow = true;
@@ -96,14 +99,16 @@ function ModelViewer({ url, config }: { url: string, config?: Record<string, str
   return <Stage environment="city" intensity={1} shadows={false} adjustCamera={false}><primitive object={scene} /></Stage>;
 }
 
-// --- PÁGINA DO PRODUTO (COMPONENTE PRINCIPAL) ---
+// ==============================================================================
+// 5. COMPONENTE PRINCIPAL: PÁGINA DO PRODUTO
+// ==============================================================================
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { addItem, totalItems, toggleCart } = useCartStore();
   const [product, setProduct] = useState<Product | null>(null);
   const { theme, setTheme } = useTheme();
   
-  // Estados de controle da interface
+  // Estados de Interface
   const [mediaIndex, setMediaIndex] = useState(0); 
   const [availableMedia, setAvailableMedia] = useState<any[]>([]);
   const [mounted, setMounted] = useState(false);
@@ -111,14 +116,14 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const mediaContainerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // --- BUSCA DOS DADOS NO SUPABASE ---
+  // --- BUSCA DE DADOS ---
   useEffect(() => {
     setMounted(true);
     async function fetchProduct() {
       const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
       if (data) {
         setProduct(data as Product);
-        // Organiza a mídia disponível (3D > Vídeos > Foto)
+        // Monta array de mídia disponível na ordem de prioridade
         const media = [];
         if (data.glb_url || data.file_url) media.push({ type: '3d', label: 'Visualização 3D' });
         if (data.video_360_url) media.push({ type: 'video360', label: 'Vídeo 360°', url: data.video_360_url });
@@ -130,18 +135,17 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     }
     fetchProduct();
 
-    // Monitora se o usuário entrou/saiu do modo tela cheia
+    // Listener para tecla ESC ou mudança de estado nativa do Fullscreen
     const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, [id]);
 
-  // --- PERFORMANCE: LISTA DE PEDRAS OTIMIZADA (MEMO) ---
+  // --- PROCESSAMENTO DE LISTA DE PEDRAS ---
   const stonesList = useMemo(() => {
     if (!product?.stones_info) return null;
     return product.stones_info.split('+').map((stoneStr, idx) => {
         const cleanStr = stoneStr.trim();
-        // Regex para extrair qtd e nome: "10 un. Zircônia..."
         const match = cleanStr.match(/^(\?|\d+)\s*un\.\s*(.+)\s*\(Total:\s*([\d\.]+)g\)/i);
         if (match) {
             return (
@@ -155,10 +159,10 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     });
   }, [product?.stones_info]);
 
-  // Tela de Carregamento
+  // Loading State
   if (!mounted || !product) return <div className="min-h-screen bg-wfx-bg flex items-center justify-center"><div className="w-8 h-8 border-2 border-wfx-primary border-t-transparent rounded-full animate-spin"></div></div>;
 
-  // Helpers de Mídia
+  // Helpers de Mídia e Controle
   const currentMedia = availableMedia[mediaIndex] || { type: 'image' };
   const handleNextMedia = () => setMediaIndex((prev) => (prev + 1) % availableMedia.length);
   const handlePrevMedia = () => setMediaIndex((prev) => (prev - 1 + availableMedia.length) % availableMedia.length);
@@ -193,7 +197,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     return (calculateMetalWeight(density) + stonesTotalWeight).toFixed(2);
   };
 
-  // Scroll suave para âncoras
+  // Scroll Suave
   const handleSobreClick = (e: React.MouseEvent) => {
     e.preventDefault();
     setMobileMenuOpen(false);
@@ -208,13 +212,13 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
       <CartSidebar />
       
       {/* --- HEADER --- */}
-      <header className="border-b border-wfx-border sticky top-0 bg-wfx-bg/80 backdrop-blur-md z-50 h-20">
+      <header className="border-b border-wfx-border sticky top-0 bg-wfx-bg/80 backdrop-blur-md z-50 h-20 shrink-0">
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-full flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 cursor-pointer">
              <Image src="/logo.png" alt="WFX Logo" width={100} height={40} priority className="object-contain" />
           </Link>
           <nav className="hidden md:flex gap-8 text-sm font-medium text-wfx-muted">
-            <Link href="/" className="hover:text-wfx-primary transition-colors">COLEÇÃO 2025</Link>
+            <Link href="/" className="hover:text-wfx-primary transition-colors">COLEÇÃO 2026</Link>
             <Link href="/?action=lancamentos" className="hover:text-wfx-primary transition-colors">LANÇAMENTOS</Link>
             <Link href="/atendimento" className="hover:text-wfx-primary transition-colors">ATENDIMENTO EXCLUSIVO</Link>
             <a href="#sobre" onClick={handleSobreClick} className="hover:text-wfx-primary transition-colors">SOBRE</a>
@@ -228,7 +232,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
         {mobileMenuOpen && (
           <div className="md:hidden absolute top-20 left-0 w-full bg-wfx-bg border-b border-wfx-border shadow-2xl animate-in slide-in-from-top-5 z-40 text-wfx-text">
             <nav className="flex flex-col p-6 space-y-4 text-center font-bold text-lg">
-              <Link href="/" onClick={() => setMobileMenuOpen(false)} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">COLEÇÃO 2025</Link>
+              <Link href="/" onClick={() => setMobileMenuOpen(false)} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">COLEÇÃO 2026</Link>
               <Link href="/?action=lancamentos" onClick={() => setMobileMenuOpen(false)} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">LANÇAMENTOS</Link>
               <Link href="/atendimento" onClick={() => setMobileMenuOpen(false)} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">ATENDIMENTO EXCLUSIVO</Link>
               <a href="#sobre" onClick={handleSobreClick} className="py-2 hover:text-wfx-primary">SOBRE</a>
@@ -237,67 +241,67 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
         )}
       </header>
 
-      {/* --- ÁREA PRINCIPAL (MAIN) --- 
-          pt-8 / pb-8: Garante o "respiro" simétrico de 32px no topo e em baixo.
-          min-h-[calc(100vh-80px)]: Garante que o footer fique escondido (below fold).
-      */}
-      <main className="flex-1 flex flex-col justify-start max-w-7xl mx-auto px-6 pt-8 pb-8 w-full min-h-[calc(100vh-80px)]">
+      {/* --- ÁREA PRINCIPAL (MAIN) --- */}
+      <main className="flex-1 min-h-[calc(100vh-80px)] flex flex-col justify-center max-w-7xl mx-auto px-6 py-6 w-full">
         
-        {/* SEM BOTÃO VOLTAR */}
-
         {/* GRID PRINCIPAL */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch w-full">
           
-          {/* === COLUNA ESQUERDA (Mídia + Contato) === */}
-          <div className="lg:col-span-8 flex flex-col gap-6">
+          {/* === COLUNA ESQUERDA (Mídia + Dots + Contato) === */}
+          <div className="lg:col-span-8 flex flex-col gap-6 h-full">
             
-            {/* CONTAINER 3D / FOTO */}
-            <div>
-                {/* CÁLCULO DE ALTURA SIMÉTRICO:
-                   md:h-[calc(100vh-340px)]
-                   - Isso calcula: Altura Total (100vh) MENOS (Header + Margem Topo + Margem Baixo + Cartão Contato).
-                   - Resultado: O 3D se ajusta para que sobre exatamente 32px no final da tela, igual ao topo.
-                */}
-                <div ref={mediaContainerRef} className={`relative w-full bg-wfx-bg border border-wfx-border rounded-lg overflow-hidden shadow-inner group flex items-center justify-center transition-all ${isFullscreen ? 'fixed inset-0 z-[100] h-screen border-none rounded-none' : 'aspect-square md:aspect-auto md:h-[calc(100vh-340px)] min-h-[400px]'}`}>
-                {currentMedia.type === '3d' && viewerUrl && (
-                    <>
-                    <Canvas dpr={[1, 1.5]} camera={{ position: [25, 25, 25], fov: 40 }} className="h-full w-full">
-                        <Suspense fallback={null}><ModelViewer url={viewerUrl} config={product.material_config} /></Suspense>
-                        <OrbitControls autoRotate autoRotateSpeed={2} makeDefault />
-                    </Canvas>
-                    <Loader dataInterpolation={(p) => `Carregando ${p.toFixed(0)}%`} containerStyles={{ background: 'transparent' }} innerStyles={{ backgroundColor: 'rgba(0,0,0,0.1)', width: '200px' }} barStyles={{ backgroundColor: '#0044cc' }} dataStyles={{ color: '#0044cc', fontSize: '12px', fontWeight: 'bold' }} />
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 z-20 pointer-events-none text-center w-max max-w-[90%]">
-                        <AlertCircle size={14} className="text-yellow-400 shrink-0" />
-                        <span className="text-white/90 text-[10px] md:text-xs font-medium leading-tight">Qualidade visual reduzida para web.</span>
-                    </div>
-                    </>
-                )}
-                {currentMedia.type === 'video360' && (<video src={currentMedia.url} className="w-full h-full object-contain bg-black" autoPlay loop muted playsInline controls />)}
-                {currentMedia.type === 'videoReal' && (<video src={currentMedia.url} className="w-full h-full object-contain bg-black" autoPlay loop muted playsInline controls />)}
-                {currentMedia.type === 'image' && (<img src={product.image_url} alt={product.title} className="w-full h-full object-contain p-8" />)}
-
-                <button onClick={toggleFullscreen} className="absolute top-4 right-4 bg-wfx-card/80 hover:bg-wfx-primary hover:text-white p-2 rounded-lg backdrop-blur-sm transition-all shadow-lg z-30"><Maximize2 size={20} /></button>
-                {availableMedia.length > 1 && (
-                    <>
-                    <button onClick={handlePrevMedia} className="absolute left-4 top-1/2 -translate-y-1/2 bg-wfx-bg/80 hover:bg-wfx-primary hover:text-white p-3 rounded-full shadow-lg transition-all opacity-0 group-hover:opacity-100 z-10"><ChevronLeft size={28} /></button>
-                    <button onClick={handleNextMedia} className="absolute right-4 top-1/2 -translate-y-1/2 bg-wfx-bg/80 hover:bg-wfx-primary hover:text-white p-3 rounded-full shadow-lg transition-all opacity-0 group-hover:opacity-100 z-10"><ChevronRight size={28} /></button>
-                    </>
-                )}
-                {currentMedia.type !== '3d' && (
-                    <div className="absolute top-4 left-4 bg-black/70 text-white text-xs px-3 py-1 rounded-full uppercase tracking-wider font-bold backdrop-blur-sm z-10">{currentMedia.label}</div>
-                )}
-                </div>
+            {/* WRAPPER MÍDIA E DOTS 
+                - Agrupa o card visual e os pontos para que fiquem juntos logicamente.
+                - Mantém o gap-6 da coluna pai separando este bloco do card de contato.
+            */}
+            <div className="flex flex-col gap-4 flex-1 min-h-0">
                 
-                {/* Dots de navegação */}
-                <div className="flex justify-center gap-2 mt-4">
-                  {availableMedia.map((media, idx) => (
+                {/* CONTAINER VISUALIZADOR 3D / FOTO / VÍDEO */}
+                <div ref={mediaContainerRef} className={`relative flex-1 min-h-[300px] w-full bg-wfx-bg border border-wfx-border rounded-lg overflow-hidden shadow-inner group flex items-center justify-center transition-all ${isFullscreen ? 'fixed inset-0 z-[100] h-screen border-none rounded-none' : ''}`}>
+                    
+                    {/* Fallback de altura mínima e conteúdo */}
+                    <div className="absolute inset-0">
+                        {currentMedia.type === '3d' && viewerUrl && (
+                            <>
+                            <Canvas dpr={[1, 1.5]} camera={{ position: [25, 25, 25], fov: 40 }} className="h-full w-full">
+                                <Suspense fallback={null}><ModelViewer url={viewerUrl} config={product.material_config} /></Suspense>
+                                <OrbitControls autoRotate autoRotateSpeed={2} makeDefault />
+                            </Canvas>
+                            <Loader dataInterpolation={(p) => `Carregando ${p.toFixed(0)}%`} containerStyles={{ background: 'transparent' }} innerStyles={{ backgroundColor: 'rgba(0,0,0,0.1)', width: '200px' }} barStyles={{ backgroundColor: '#0044cc' }} dataStyles={{ color: '#0044cc', fontSize: '12px', fontWeight: 'bold' }} />
+                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 z-20 pointer-events-none text-center w-max max-w-[90%]">
+                                <AlertCircle size={14} className="text-yellow-400 shrink-0" />
+                                <span className="text-white/90 text-[10px] md:text-xs font-medium leading-tight">Qualidade visual reduzida para web.</span>
+                            </div>
+                            </>
+                        )}
+                        {currentMedia.type === 'video360' && (<video src={currentMedia.url} className="w-full h-full object-contain bg-black" autoPlay loop muted playsInline controls />)}
+                        {currentMedia.type === 'videoReal' && (<video src={currentMedia.url} className="w-full h-full object-contain bg-black" autoPlay loop muted playsInline controls />)}
+                        {currentMedia.type === 'image' && (<img src={product.image_url} alt={product.title} className="w-full h-full object-contain p-8" />)}
+                    </div>
+
+                    {/* Botões de Controle (Dentro da imagem) */}
+                    <button onClick={toggleFullscreen} className="absolute top-4 right-4 bg-wfx-card/80 hover:bg-wfx-primary hover:text-white p-2 rounded-lg backdrop-blur-sm transition-all shadow-lg z-30"><Maximize2 size={20} /></button>
+                    {availableMedia.length > 1 && (
+                        <>
+                        <button onClick={handlePrevMedia} className="absolute left-4 top-1/2 -translate-y-1/2 bg-wfx-bg/80 hover:bg-wfx-primary hover:text-white p-3 rounded-full shadow-lg transition-all opacity-0 group-hover:opacity-100 z-10"><ChevronLeft size={28} /></button>
+                        <button onClick={handleNextMedia} className="absolute right-4 top-1/2 -translate-y-1/2 bg-wfx-bg/80 hover:bg-wfx-primary hover:text-white p-3 rounded-full shadow-lg transition-all opacity-0 group-hover:opacity-100 z-10"><ChevronRight size={28} /></button>
+                        </>
+                    )}
+                    {currentMedia.type !== '3d' && (
+                        <div className="absolute top-4 left-4 bg-black/70 text-white text-xs px-3 py-1 rounded-full uppercase tracking-wider font-bold backdrop-blur-sm z-10">{currentMedia.label}</div>
+                    )}
+                </div>
+
+                {/* DOTS DE NAVEGAÇÃO - FORA DO CARD*/}
+                <div className="flex justify-center gap-2 w-full">
+                    {availableMedia.map((media, idx) => (
                     <button key={idx} onClick={() => setMediaIndex(idx)} className={`h-1.5 rounded-full transition-all ${mediaIndex === idx ? 'w-8 bg-wfx-primary' : 'w-2 bg-slate-300 dark:bg-slate-700 hover:bg-wfx-primary/50'}`} />
-                  ))}
+                    ))}
                 </div>
             </div>
 
             {/* CARD DE CONTATO */}
-            <div className="bg-wfx-card border border-wfx-border rounded-lg p-6 text-center shadow-sm mt-auto">
+            <div className="bg-wfx-card border border-wfx-border rounded-lg p-6 text-center shadow-sm shrink-0">
                 <p className="font-bold text-sm text-wfx-primary mb-2">Não gostou de algo na peça? Tem alguma dúvida?</p>
                 <p className="text-sm text-wfx-muted mb-4">Entre em contato comigo para ajustes personalizados antes da compra:</p>
                 <div className="flex justify-center gap-6 text-sm font-bold text-wfx-text">
@@ -314,7 +318,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               
                   {/* SEÇÃO SUPERIOR (Título, Preço) */}
                   <div> 
-                      {/* Cabeçalho */}
                       <div className="pb-3 border-b border-wfx-border/50">
                         <span className="text-xs text-wfx-primary font-bold uppercase tracking-widest mb-1 block">{product.category}</span>
                         <div className="flex justify-between items-start gap-4">
@@ -378,7 +381,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                             </div>
 
                             <div className="grid grid-cols-2 divide-x divide-y divide-wfx-border/30 bg-wfx-bg">
-                                {/* Latão */}
                                 <div className="p-3 flex justify-between items-center hover:bg-wfx-muted/5 transition-colors">
                                     <div className="flex items-center gap-2 border-l-2 border-amber-600 pl-2 h-4">
                                         <span className="text-wfx-muted text-[10px] uppercase font-bold tracking-wider">Latão</span>
@@ -386,7 +388,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                                     <span className="font-mono font-bold text-sm text-wfx-text">{calculateTotalWeight(DENSITIES.brass)}g</span>
                                 </div>
                                 
-                                {/* Prata */}
                                 <div className="p-3 flex justify-between items-center hover:bg-wfx-muted/5 transition-colors">
                                     <div className="flex items-center gap-2 border-l-2 border-slate-300 pl-2 h-4">
                                         <span className="text-wfx-muted text-[10px] uppercase font-bold tracking-wider">Prata</span>
@@ -394,7 +395,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                                     <span className="font-mono font-bold text-sm text-wfx-text">{calculateTotalWeight(DENSITIES.silver)}g</span>
                                 </div>
                                 
-                                {/* Ouro 10k */}
                                 <div className="p-3 flex justify-between items-center hover:bg-wfx-muted/5 transition-colors border-t border-wfx-border/30">
                                     <div className="flex items-center gap-2 border-l-2 border-yellow-500 pl-2 h-4">
                                         <span className="text-wfx-muted text-[10px] uppercase font-bold tracking-wider">Ouro 10k</span>
@@ -402,7 +402,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                                     <span className="font-mono font-bold text-sm text-wfx-text">{calculateTotalWeight(DENSITIES.gold10k)}g</span>
                                 </div>
                                 
-                                {/* Ouro 18k */}
                                 <div className="p-3 flex justify-between items-center hover:bg-wfx-muted/5 transition-colors border-t border-wfx-border/30">
                                     <div className="flex items-center gap-2 border-l-2 border-yellow-400 pl-2 h-4">
                                         <span className="text-wfx-muted text-[10px] uppercase font-bold tracking-wider">Ouro 18k</span>
@@ -435,7 +434,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
       </main>
 
       {/* FOOTER */}
-            <footer id="sobre" className="bg-wfx-bg text-wfx-text border-t border-wfx-text/10 dark:border-slate-800/50 py-16 transition-colors duration-150 ease-out">
+      <footer id="sobre" className="bg-wfx-bg text-wfx-text border-t border-wfx-text/10 dark:border-slate-800/50 py-16 transition-colors duration-150 ease-out shrink-0 mt-auto">
               <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-3 gap-12">
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">

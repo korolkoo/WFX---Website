@@ -40,7 +40,7 @@ export default function AtendimentoPage() {
                     </Link>
 
                     <nav className="hidden md:flex gap-8 text-sm font-medium text-wfx-muted">
-                        <Link href="/" className="hover:text-wfx-primary transition-colors">COLEÇÃO 2025</Link>
+                        <Link href="/" className="hover:text-wfx-primary transition-colors">COLEÇÃO 2026</Link>
                         <Link href="/?action=lancamentos" className="hover:text-wfx-primary transition-colors">LANÇAMENTOS</Link>
                         <Link href="/atendimento" className="hover:text-wfx-primary transition-colors">ATENDIMENTO EXCLUSIVO</Link>
                         <Link href="/?action=sobre" className="hover:text-wfx-primary transition-colors">SOBRE</Link>
@@ -56,7 +56,7 @@ export default function AtendimentoPage() {
                 {mobileMenuOpen && (
                     <div className="md:hidden absolute top-20 left-0 w-full bg-wfx-bg border-b border-wfx-border shadow-2xl animate-in slide-in-from-top-5 z-40 text-wfx-text">
                         <nav className="flex flex-col p-6 space-y-4 text-center font-bold text-lg">
-                            <Link href="/" onClick={() => setMobileMenuOpen(false)} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">COLEÇÃO 2025</Link>
+                            <Link href="/" onClick={() => setMobileMenuOpen(false)} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">COLEÇÃO 2026</Link>
                             <Link href="/?action=lancamentos" onClick={() => setMobileMenuOpen(false)} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">LANÇAMENTOS</Link>
                             <Link href="/atendimento" onClick={() => setMobileMenuOpen(false)} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">ATENDIMENTO EXCLUSIVO</Link>
                             <Link href="/?action=sobre" onClick={() => setMobileMenuOpen(false)} className="py-2 hover:text-wfx-primary">SOBRE</Link>

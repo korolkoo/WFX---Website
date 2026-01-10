@@ -176,7 +176,7 @@ function HomeContent() {
           </div>
 
           <nav className="hidden md:flex gap-8 text-sm font-medium text-wfx-muted">
-            <a href="#" className="hover:text-wfx-primary transition-colors">COLEÇÃO 2025</a>
+            <a href="#" className="hover:text-wfx-primary transition-colors">COLEÇÃO 2026</a>
             <a href="#catalogo" onClick={handleLancamentosClick} className="hover:text-wfx-primary transition-colors">LANÇAMENTOS</a>
             <Link href="/atendimento" className="hover:text-wfx-primary transition-colors">ATENDIMENTO EXCLUSIVO</Link>
             <a href="#sobre" onClick={handleSobreClick} className="hover:text-wfx-primary transition-colors">SOBRE</a>
@@ -199,7 +199,7 @@ function HomeContent() {
         {mobileMenuOpen && (
           <div className="md:hidden absolute top-20 left-0 w-full bg-wfx-bg border-b border-wfx-border shadow-2xl animate-in slide-in-from-top-5 z-40 text-wfx-text">
             <nav className="flex flex-col p-6 space-y-4 text-center font-bold text-lg">
-              <a href="#" onClick={() => setMobileMenuOpen(false)} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">COLEÇÃO 2025</a>
+              <a href="#" onClick={() => setMobileMenuOpen(false)} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">COLEÇÃO 2026</a>
               <a href="#catalogo" onClick={handleLancamentosClick} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">LANÇAMENTOS</a>
               <Link href="/atendimento" onClick={() => setMobileMenuOpen(false)} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">ATENDIMENTO EXCLUSIVO</Link>
               <a href="#sobre" onClick={handleSobreClick} className="py-2 hover:text-wfx-primary">SOBRE</a>
@@ -215,7 +215,7 @@ function HomeContent() {
             <div className="space-y-4 md:space-y-6 text-center md:text-left order-2 md:order-1">
               <h1 className="text-4xl md:text-6xl font-bold leading-tight tracking-tight text-wfx-text">
                 Modelagem Técnica <br />
-                para <span className="text-wfx-primary">Alta Joalheria</span>.
+                para <span className="text-wfx-primary">Alta Joalheria</span>
               </h1>
               <p className="text-wfx-muted text-base md:text-lg max-w-md leading-relaxed mx-auto md:mx-0">
                 Arquivos STL validados para Prototipagem e Moldes de Borracha.
