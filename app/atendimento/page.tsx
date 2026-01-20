@@ -94,30 +94,56 @@ export default function AtendimentoPage() {
                     
                     <div className="pt-12 border-t border-wfx-border mt-12">
                         <p className="text-sm text-wfx-muted mb-4">Ou me acompanhe nas redes:</p>
-                        <a href="https://instagram.com/WFX" target="_blank" className="inline-flex items-center gap-2 text-wfx-primary font-bold hover:underline"><Instagram size={20} /> @WFX no Instagram</a>
+                        <a href="https://instagram.com/wfx.joias" target="_blank" className="inline-flex items-center gap-2 text-wfx-primary font-bold hover:underline"><Instagram size={20} /> @wfx.joias no Instagram</a>
                     </div>
                 </div>
             </main>
 
             {/* FOOTER - COMPACTO MAS COM ESTILO IDENTICO AO PRINCIPAL */}
-            <footer className="bg-wfx-bg text-wfx-text border-t border-wfx-text/10 dark:border-slate-800 py-6 transition-colors shrink-0">
-                <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-[10px] font-black text-wfx-muted uppercase tracking-[0.3em]">
+            <footer className="border-t border-gray-200 dark:border-white/10 bg-white dark:bg-[#020617] py-10 shrink-0 transition-colors">
+                <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6 text-[10px]">
                     
-                    <div className="flex items-center gap-4">
-                        {/* Logo Pequena */}
-                        <div className="opacity-60 hover:opacity-100 transition-opacity">
-                            <Image src="/logo.png" alt="WFX Logo" width={50} height={20} className="object-contain" />
+                    {/* Lado Esquerdo: Marca & Dados Legais */}
+                    <div className="flex flex-col gap-4 md:text-left text-center">
+                        
+                        {/* Linha Logo + Copyright (Corrigido: Mais nítido) */}
+                        <div className="flex flex-col md:flex-row items-center gap-4">
+                            <div className="opacity-60 hover:opacity-100 transition-opacity">
+                                <Image 
+                                    src="/logo.png" 
+                                    alt="WFX" 
+                                    width={50} 
+                                    height={20} 
+                                    className="object-contain" 
+                                />
+                            </div>
+                            {/* Separador Vertical (só no desktop) */}
+                            <div className="hidden md:block w-px h-4 bg-gray-300 dark:bg-white/10"></div>
+                            
+                            <p className="font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
+                                © 2026 WFX - Todos os direitos reservados.
+                            </p>
                         </div>
-                        <span className="border-l border-wfx-text/10 pl-4">
-                            © 2026 Todos os direitos reservados.
-                        </span>
+                        
+                        {/* Bloco de Dados Fiscais (Sem contatos) */}
+                        <div className="text-gray-400 dark:text-gray-500 font-medium leading-relaxed opacity-80">
+                           <p>
+                                Gustavo Lamonatto Postal | CNPJ: 64.248.071/0001-90
+                           </p>
+                           <p className="mt-1">
+                                Rua Rodrigues Alves, 162 - Bairro São José, Guaporé - RS
+                           </p>
+                        </div>
                     </div>
 
-                    <div>
-                        Brasil / Rio Grande do Sul
+                    {/* Lado Direito: Localização (Corrigido: Mais nítido) */}
+                    <div className="text-center md:text-right">
+                        <p className="font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
+                            Brasil / Rio Grande do Sul
+                        </p>
                     </div>
                 </div>
-            </footer>
+          </footer>
         </div>
     );
 }

@@ -257,7 +257,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             <div className="flex flex-col gap-4 flex-1 min-h-0">
                 
                 {/* CONTAINER VISUALIZADOR 3D / FOTO / VÍDEO */}
-                <div ref={mediaContainerRef} className={`relative flex-1 min-h-[300px] w-full bg-wfx-bg border border-wfx-border rounded-lg overflow-hidden shadow-inner group flex items-center justify-center transition-all ${isFullscreen ? 'fixed inset-0 z-[100] h-screen border-none rounded-none' : ''}`}>
+                <div ref={mediaContainerRef} className={`relative flex-1 min-h-[550px] lg:min-h-[300px] w-full bg-wfx-bg border border-wfx-border rounded-lg overflow-hidden shadow-inner group flex items-center justify-center transition-all ${isFullscreen ? 'fixed inset-0 z-[100] h-screen border-none rounded-none' : ''}`}>
                     
                     {/* Fallback de altura mínima e conteúdo */}
                     <div className="absolute inset-0">
@@ -434,64 +434,106 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
       </main>
 
       {/* FOOTER */}
-      <footer id="sobre" className="bg-wfx-bg text-wfx-text border-t border-wfx-text/10 dark:border-slate-800/50 py-16 transition-colors duration-150 ease-out shrink-0 mt-auto">
-              <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-3 gap-12">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Image 
-                      src="/logo.png" 
-                      alt="WFX Logo Footer" 
-                      width={90} 
-                      height={35} 
-                      className="object-contain" 
-                    />
-                    <div className="w-2 h-2 bg-wfx-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
-                  </div>
-                  <p className="text-wfx-muted text-sm leading-relaxed max-w-xs">
-                    Especialista em modelagem 3D técnica para alta joalheria. Garantindo precisão para prototipagem e moldes de borracha.
-                  </p>
-                </div>
-      
-                <div className="space-y-4">
-                  <h4 className="font-bold text-sm uppercase tracking-widest text-wfx-primary">Contato & Suporte</h4>
-                  <ul className="space-y-3 text-wfx-muted">
-                    <li className="flex items-center gap-3">
-                      <Instagram size={18} />
-                      <a href="https://instagram.com/WFX" target="_blank" className="hover:text-wfx-primary transition-colors">@WFX</a>
-                    </li>
-                    <li className="flex items-center gap-3">
-                      <Mail size={18} />
-                      <a href="mailto:wfxjoias@gmail.com" className="hover:text-wfx-primary transition-colors">wfxjoias@gmail.com</a>
-                    </li>
-                    <li className="flex items-center gap-3">
-                      <Phone size={18} />
-                      <a href="https://wa.me/5554996704599" target="_blank" className="hover:text-wfx-primary transition-colors">+55 (54) 99670-4599</a>
-                    </li>
-                  </ul>
-                </div>
-      
-                <div className="md:text-right flex flex-col md:items-end justify-between">
-                  <div className="hidden md:block"></div>
-                  <div className="space-y-3">
-                    <span className="text-[10px] font-bold text-wfx-muted uppercase tracking-[0.2em] block">Design & Development</span>
-                    <a 
-                      href="https://instagram.com/yurikorolko" 
-                      target="_blank" 
-                      className="inline-flex items-center gap-3 bg-wfx-card border border-wfx-text/10 px-5 py-2.5 rounded-full shadow-sm transition-all duration-150 ease-out transform-gpu hover:shadow-md hover:border-wfx-primary/50 hover:-translate-y-1 active:scale-95 group"
-                    >
-                      <div className="p-1 rounded-full bg-wfx-text/5 group-hover:bg-wfx-primary/10 transition-colors duration-150">
-                        <Code size={16} className="text-wfx-primary" />
-                      </div>
-                      <span className="font-bold text-sm tracking-tight transition-colors duration-150 group-hover:text-wfx-primary">@yurikorolko</span>
-                    </a>
-                  </div>
-                </div>
+      <footer id="sobre" className="bg-wfx-bg text-wfx-text border-t border-wfx-text/10 dark:border-slate-800/50 py-10 transition-colors duration-150 ease-out text-center md:text-left">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-4">
+          
+          {/* COLUNA 1: MARCA */}
+          <div className="md:col-span-4 space-y-4">
+            <div className="flex items-center justify-center md:justify-start gap-2">
+              <Image 
+                src="/logo.png" 
+                alt="WFX Logo Footer" 
+                width={80} 
+                height={30} 
+                className="object-contain" 
+              />
+              <div className="w-1.5 h-1.5 bg-wfx-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
+            </div>
+            <p className="text-wfx-muted text-xs md:text-sm leading-relaxed max-w-sm mx-auto md:mx-0">
+              Especialista em modelagem 3D técnica para alta joalheria. Garantindo precisão para prototipagem e moldes de borracha.
+            </p>
+          </div>
+
+          {/* COLUNA 2: CONTATO */}
+          <div className="md:col-span-3 space-y-4 md:pl-8">
+            <h4 className="font-bold text-xs uppercase tracking-widest text-wfx-primary">Contato</h4>
+            <ul className="space-y-3 text-sm text-wfx-muted">
+              <li className="flex items-center justify-center md:justify-start gap-3 group">
+                <Instagram size={16} className="shrink-0 group-hover:text-wfx-primary transition-colors"/>
+                <a href="https://instagram.com/wfx.joias" target="_blank" className="hover:text-wfx-primary transition-colors">@wfx.joias</a>
+              </li>
+              <li className="flex items-center justify-center md:justify-start gap-3 group">
+                <Mail size={16} className="shrink-0 group-hover:text-wfx-primary transition-colors"/>
+                <a href="mailto:wfxjoias@gmail.com" className="hover:text-wfx-primary transition-colors truncate">wfxjoias@gmail.com</a>
+              </li>
+              <li className="flex items-center justify-center md:justify-start gap-3 group">
+                <Phone size={16} className="shrink-0 group-hover:text-wfx-primary transition-colors"/>
+                <a href="https://wa.me/5554996704599" target="_blank" className="hover:text-wfx-primary transition-colors whitespace-nowrap">+55 (54) 99670-4599</a>
+              </li>
+            </ul>
+          </div>
+
+          {/* COLUNA 3: INSTITUCIONAL */}
+          <div className="md:col-span-2 space-y-4">
+            <h4 className="font-bold text-xs uppercase tracking-widest text-wfx-primary">Institucional</h4>
+            <ul className="space-y-3 text-sm text-wfx-muted">
+              <li>
+                <Link href="/termos" className="hover:text-wfx-primary transition-colors flex items-center justify-center md:justify-start gap-2 group">
+                    <span className="w-1 h-1 bg-wfx-muted rounded-full group-hover:bg-wfx-primary transition-colors"></span>
+                    Termos de Uso
+                </Link>
+              </li>
+              <li>
+                <Link href="/privacidade" className="hover:text-wfx-primary transition-colors flex items-center justify-center md:justify-start gap-2 group">
+                    <span className="w-1 h-1 bg-wfx-muted rounded-full group-hover:bg-wfx-primary transition-colors"></span>
+                    Política de Privacidade
+                </Link>
+              </li>
+              <li>
+                <Link href="/atendimento" className="hover:text-wfx-primary transition-colors flex items-center justify-center md:justify-start gap-2 group">
+                    <span className="w-1 h-1 bg-wfx-muted rounded-full group-hover:bg-wfx-primary transition-colors"></span>
+                    Atendimento Exclusivo
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* COLUNA 4: DEV */}
+          <div className="md:col-span-3 flex flex-col items-center md:items-end justify-start space-y-4">
+            <span className="text-[10px] font-bold text-wfx-muted uppercase tracking-[0.2em]">Design & Development</span>
+            <a 
+              href="https://instagram.com/yurikorolko" 
+              target="_blank" 
+              className="inline-flex items-center gap-3 bg-wfx-card border border-wfx-text/10 px-4 py-2 rounded-full shadow-sm transition-all duration-150 ease-out transform-gpu hover:shadow-md hover:border-wfx-primary/50 hover:-translate-y-1 active:scale-95 group"
+            >
+              <div className="p-1 rounded-full bg-wfx-text/5 group-hover:bg-wfx-primary/10 transition-colors duration-150">
+                <Code size={14} className="text-wfx-primary" />
               </div>
-              <div className="max-w-7xl mx-auto px-6 mt-16 pt-8 border-t border-wfx-text/10 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center text-[10px] font-black text-wfx-muted uppercase tracking-[0.3em]">
-                <p>© 2026 WFX - Todos os direitos reservados.</p>
-                <p className="mt-2 md:mt-0">Brasil / Rio Grande do Sul</p>
-              </div>
-            </footer>
+              <span className="font-bold text-xs tracking-tight transition-colors duration-150 group-hover:text-wfx-primary">@yurikorolko</span>
+            </a>
+          </div>
+        </div>
+
+        {/* --- RODAPÉ INFERIOR --- */}
+        <div className="max-w-7xl mx-auto px-6 mt-10 pt-6 border-t border-wfx-text/10 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-6 md:gap-4 text-[10px]">
+          
+          {/* Lado Esquerdo: Dados Legais */}
+          <div className="text-wfx-muted font-medium leading-relaxed text-center md:text-left">
+             <p className="font-black uppercase tracking-[0.2em] mb-1 text-wfx-muted opacity-60">
+                © 2026 WFX - Todos os direitos reservados.
+             </p>
+             <p className="opacity-70 dark:opacity-50 mt-1">
+                Gustavo Lamonatto Postal | CNPJ: 64.248.071/0001-90 <span className="hidden md:inline mx-1">•</span> <br className="md:hidden"/>
+                Rua Rodrigues Alves, 162 - Bairro São José, Guaporé - RS
+             </p>
+          </div>
+
+          {/* Lado Direito: Localização */}
+          <div className="font-black text-wfx-muted uppercase tracking-[0.3em] whitespace-nowrap opacity-60">
+             Brasil / Rio Grande do Sul
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
