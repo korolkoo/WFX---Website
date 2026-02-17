@@ -3,13 +3,20 @@ import { headers } from "next/headers";
 import Stripe from "stripe";
 import { Resend } from "resend";
 import { getEmailTemplate } from "@/lib/emailTemplate"; 
+import { createClient } from "@supabase/supabase-js"; // IMPORTANTE: Importando o Supabase
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-12-15.clover",
+  apiVersion: "2025-12-15.clover" as any,
 });
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+
+// CRIA O CLIENTE ADMIN (Usando a Service Role que colocamos no .env)
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY! 
+);
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -32,28 +39,48 @@ export async function POST(req: Request) {
     const customerEmail = session.customer_details?.email;
     const customerName = session.customer_details?.name || "Cliente";
     
+    // PUXA O ID DO USUÁRIO QUE SALVAMOS LÁ NO CHECKOUT
+    const userId = session.metadata?.userId; 
+    
     if (customerEmail) {
       try {
-        // 1. Buscamos os itens EXPANDINDO os dados do produto para pegar o metadata
         const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
           expand: ['data.price.product'], 
         });
         
-        // 2. Mapeamos os itens pegando o link que salvamos no passo anterior
         const orderItems = lineItems.data.map((item: any) => ({
           title: item.description || "Produto Digital",
-          // O link está dentro de price -> product -> metadata
           downloadUrl: item.price.product.metadata.file_url || null
         }));
 
-        const orderId = `#${session.id.slice(-6).toUpperCase()}`;
+        // ==============================================
+        // MÁGICA: SALVANDO A COMPRA NO BANCO DE DADOS
+        // ==============================================
+        if (userId) {
+          const purchasesToInsert = lineItems.data.map((item: any) => {
+            const dbId = item.price.product.metadata.db_id;
+            return {
+              user_id: userId,
+              product_id: dbId ? parseInt(dbId) : null,
+              stripe_session_id: session.id
+            };
+          }).filter((p: any) => p.product_id !== null); // Garante que tem ID válido
 
-        // 3. Geramos o e-mail (Note que removi o "downloadLink" único)
-        const emailHtml = getEmailTemplate(
-          customerName,
-          orderId,
-          orderItems
-        );
+          if (purchasesToInsert.length > 0) {
+            const { error: dbError } = await supabaseAdmin.from('purchases').insert(purchasesToInsert);
+            if (dbError) {
+                console.error("❌ Erro ao salvar no Supabase:", dbError);
+            } else {
+                console.log("✅ Compra salva no Supabase com sucesso!");
+            }
+          }
+        }
+
+        // ==============================================
+        // ENVIO DO E-MAIL
+        // ==============================================
+        const orderId = `#${session.id.slice(-6).toUpperCase()}`;
+        const emailHtml = getEmailTemplate(customerName, orderId, orderItems);
 
         await resend.emails.send({
           from: 'WFX STL <onboarding@resend.dev>',
@@ -63,8 +90,8 @@ export async function POST(req: Request) {
         });
 
         console.log(`✅ E-mail enviado para ${customerEmail}`);
-      } catch (emailError) {
-        console.error("❌ Erro ao enviar e-mail:", emailError);
+      } catch (error) {
+        console.error("❌ Erro no processamento pós-compra:", error);
       }
     }
   }

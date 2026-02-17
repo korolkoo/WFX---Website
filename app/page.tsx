@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { useTheme } from "next-themes";
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { Moon, Sun, ShoppingBag, Instagram, Mail, Phone, Code, ChevronLeft, ChevronRight, X, Menu, Filter, Search } from "lucide-react";
+import { Moon, Sun, ShoppingBag, Instagram, Mail, Phone, Code, ChevronLeft, ChevronRight, X, Menu, Filter, Search, User } from "lucide-react";
 import { useCartStore } from "@/store/useCartStore";
 import CartSidebar from "@/components/CartSidebar";
 import Image from 'next/image';
@@ -35,8 +35,8 @@ interface Product {
   price: number;
   image_url: string;
   description?: string;
-  stones_info?: string; 
-  size?: string;         
+  stones_info?: string;
+  size?: string;
 }
 
 function HomeContent() {
@@ -186,6 +186,9 @@ function HomeContent() {
             <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="p-2 rounded-full hover:bg-wfx-card transition-all text-wfx-muted hover:text-wfx-primary">
               {theme === "dark" ? <Moon size={20} /> : <Sun size={20} />}
             </button>
+            <Link href="/perfil" className="p-2 rounded-full hover:bg-wfx-card transition-all text-wfx-muted hover:text-wfx-primary" title="Minha Conta">
+              <User size={20} />
+            </Link>
             <button onClick={toggleCart} className="flex items-center gap-2 px-3 py-2 bg-wfx-primary text-white hover:opacity-90 transition-all text-xs md:text-sm font-bold uppercase tracking-wide rounded-sm shadow-lg shadow-blue-500/20">
               <ShoppingBag size={16} />
               <span>Carrinho ({totalItems()})</span>
@@ -343,16 +346,16 @@ function HomeContent() {
       {/* FOOTER */}
       <footer id="sobre" className="bg-wfx-bg text-wfx-text border-t border-wfx-text/10 dark:border-slate-800/50 py-10 transition-colors duration-150 ease-out text-center md:text-left">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-4">
-          
+
           {/* COLUNA 1: MARCA */}
           <div className="md:col-span-4 space-y-4">
             <div className="flex items-center justify-center md:justify-start gap-2">
-              <Image 
-                src="/logo.png" 
-                alt="WFX Logo Footer" 
-                width={80} 
-                height={30} 
-                className="object-contain" 
+              <Image
+                src="/logo.png"
+                alt="WFX Logo Footer"
+                width={80}
+                height={30}
+                className="object-contain"
               />
               <div className="w-1.5 h-1.5 bg-wfx-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
             </div>
@@ -366,15 +369,15 @@ function HomeContent() {
             <h4 className="font-bold text-xs uppercase tracking-widest text-wfx-primary">Contato</h4>
             <ul className="space-y-3 text-sm text-wfx-muted">
               <li className="flex items-center justify-center md:justify-start gap-3 group">
-                <Instagram size={16} className="shrink-0 group-hover:text-wfx-primary transition-colors"/>
+                <Instagram size={16} className="shrink-0 group-hover:text-wfx-primary transition-colors" />
                 <a href="https://instagram.com/wfx.joias" target="_blank" className="hover:text-wfx-primary transition-colors">@wfx.joias</a>
               </li>
               <li className="flex items-center justify-center md:justify-start gap-3 group">
-                <Mail size={16} className="shrink-0 group-hover:text-wfx-primary transition-colors"/>
+                <Mail size={16} className="shrink-0 group-hover:text-wfx-primary transition-colors" />
                 <a href="mailto:wfxjoias@gmail.com" className="hover:text-wfx-primary transition-colors truncate">wfxjoias@gmail.com</a>
               </li>
               <li className="flex items-center justify-center md:justify-start gap-3 group">
-                <Phone size={16} className="shrink-0 group-hover:text-wfx-primary transition-colors"/>
+                <Phone size={16} className="shrink-0 group-hover:text-wfx-primary transition-colors" />
                 <a href="https://wa.me/5554996704599" target="_blank" className="hover:text-wfx-primary transition-colors whitespace-nowrap">+55 (54) 99670-4599</a>
               </li>
             </ul>
@@ -386,20 +389,20 @@ function HomeContent() {
             <ul className="space-y-3 text-sm text-wfx-muted">
               <li>
                 <Link href="/termos" className="hover:text-wfx-primary transition-colors flex items-center justify-center md:justify-start gap-2 group">
-                    <span className="w-1 h-1 bg-wfx-muted rounded-full group-hover:bg-wfx-primary transition-colors"></span>
-                    Termos de Uso
+                  <span className="w-1 h-1 bg-wfx-muted rounded-full group-hover:bg-wfx-primary transition-colors"></span>
+                  Termos de Uso
                 </Link>
               </li>
               <li>
                 <Link href="/privacidade" className="hover:text-wfx-primary transition-colors flex items-center justify-center md:justify-start gap-2 group">
-                    <span className="w-1 h-1 bg-wfx-muted rounded-full group-hover:bg-wfx-primary transition-colors"></span>
-                    Política de Privacidade
+                  <span className="w-1 h-1 bg-wfx-muted rounded-full group-hover:bg-wfx-primary transition-colors"></span>
+                  Política de Privacidade
                 </Link>
               </li>
               <li>
                 <Link href="/atendimento" className="hover:text-wfx-primary transition-colors flex items-center justify-center md:justify-start gap-2 group">
-                    <span className="w-1 h-1 bg-wfx-muted rounded-full group-hover:bg-wfx-primary transition-colors"></span>
-                    Atendimento Exclusivo
+                  <span className="w-1 h-1 bg-wfx-muted rounded-full group-hover:bg-wfx-primary transition-colors"></span>
+                  Atendimento Exclusivo
                 </Link>
               </li>
             </ul>
@@ -408,9 +411,9 @@ function HomeContent() {
           {/* COLUNA 4: DEV */}
           <div className="md:col-span-3 flex flex-col items-center md:items-end justify-start space-y-4">
             <span className="text-[10px] font-bold text-wfx-muted uppercase tracking-[0.2em]">Design & Development</span>
-            <a 
-              href="https://instagram.com/yurikorolko" 
-              target="_blank" 
+            <a
+              href="https://instagram.com/yurikorolko"
+              target="_blank"
               className="inline-flex items-center gap-3 bg-wfx-card border border-wfx-text/10 px-4 py-2 rounded-full shadow-sm transition-all duration-150 ease-out transform-gpu hover:shadow-md hover:border-wfx-primary/50 hover:-translate-y-1 active:scale-95 group"
             >
               <div className="p-1 rounded-full bg-wfx-text/5 group-hover:bg-wfx-primary/10 transition-colors duration-150">
@@ -423,21 +426,21 @@ function HomeContent() {
 
         {/* --- RODAPÉ INFERIOR --- */}
         <div className="max-w-7xl mx-auto px-6 mt-10 pt-6 border-t border-wfx-text/10 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-6 md:gap-4 text-[10px]">
-          
+
           {/* Lado Esquerdo: Dados Legais */}
           <div className="text-wfx-muted font-medium leading-relaxed text-center md:text-left">
-             <p className="font-black uppercase tracking-[0.2em] mb-1 text-wfx-muted opacity-60">
-                © 2026 WFX - Todos os direitos reservados.
-             </p>
-             <p className="opacity-70 dark:opacity-50 mt-1">
-                Gustavo Lamonatto Postal | CNPJ: 64.248.071/0001-90 <span className="hidden md:inline mx-1">•</span> <br className="md:hidden"/>
-                Rua Rodrigues Alves, 162 - Bairro São José, Guaporé - RS
-             </p>
+            <p className="font-black uppercase tracking-[0.2em] mb-1 text-wfx-muted opacity-60">
+              © 2026 WFX - Todos os direitos reservados.
+            </p>
+            <p className="opacity-70 dark:opacity-50 mt-1">
+              Gustavo Lamonatto Postal | CNPJ: 64.248.071/0001-90 <span className="hidden md:inline mx-1">•</span> <br className="md:hidden" />
+              Rua Rodrigues Alves, 162 - Bairro São José, Guaporé - RS
+            </p>
           </div>
 
           {/* Lado Direito: Localização */}
           <div className="font-black text-wfx-muted uppercase tracking-[0.3em] whitespace-nowrap opacity-60">
-             Brasil / Rio Grande do Sul
+            Brasil / Rio Grande do Sul
           </div>
         </div>
       </footer>

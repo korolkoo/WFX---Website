@@ -3,7 +3,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { useEffect, useState, Suspense, use, useMemo, useRef } from 'react';
 import { useTheme } from "next-themes";
-import { Moon, Sun, ShoppingBag, Instagram, Mail, Phone, Code, ChevronLeft, ChevronRight, Maximize2, AlertCircle, Menu, X, Ruler, Gem, Layers, Scale } from "lucide-react";
+import { Moon, Sun, ShoppingBag, Instagram, Mail, Phone, Code, ChevronLeft, ChevronRight, Maximize2, AlertCircle, Menu, X, Ruler, Gem, Layers, Scale, User } from "lucide-react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Stage, useGLTF, Loader, Environment } from "@react-three/drei";
 import * as THREE from 'three';
@@ -287,6 +287,9 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           </nav>
           <div className="flex items-center gap-2 md:gap-4">
             <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="p-2 rounded-full hover:bg-wfx-card transition-all text-wfx-muted hover:text-wfx-primary">{theme === "dark" ? <Moon size={20} /> : <Sun size={20} />}</button>
+            <Link href="/perfil" className="p-2 rounded-full hover:bg-wfx-card transition-all text-wfx-muted hover:text-wfx-primary" title="Minha Conta">
+              <User size={20} />
+            </Link>
             <button onClick={toggleCart} className="flex items-center gap-2 px-3 md:px-4 py-2 bg-wfx-primary text-white hover:opacity-90 transition-all text-xs md:text-sm font-bold uppercase tracking-wide rounded-sm shadow-lg shadow-blue-500/20"><ShoppingBag size={16} /><span>Carrinho ({totalItems()})</span></button>
             <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden p-2 text-wfx-text hover:bg-wfx-card rounded-md">{mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}</button>
           </div>

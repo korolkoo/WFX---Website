@@ -3,25 +3,50 @@
 import { useCartStore } from "@/store/useCartStore";
 import { X, Trash2, ShoppingBag, ArrowLeft, ArrowRight } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
+import { createClient } from '@/utils/supabase/client';
+import { useRouter } from "next/navigation";
 
 // Inicializa o Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY!);
 
 export default function CartSidebar() {
     const { items, isOpen, toggleCart, removeItem, totalPrice } = useCartStore();
+    const router = useRouter();
 
     const handleCheckout = async () => {
         try {
+            // 1. Instancia o Supabase e pega o usuário logado
+            const supabase = createClient();
+            const { data: { user } } = await supabase.auth.getUser();
+
+            // 2. Trava o checkout se o usuário não estiver logado
+            if (!user) {
+                toggleCart(); // Fecha a barra lateral do carrinho
+                router.push('/login'); // Redireciona o usuário silenciosamente
+                return;
+            }
+
+            // 3. Faz a requisição enviando items E userId
             const response = await fetch('/api/checkout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ items }),
+                body: JSON.stringify({ 
+                    items: items,
+                    userId: user.id // <--- O ID VAI AQUI!
+                }),
             });
 
-            const { url } = await response.json();
-            if (url) window.location.href = url;
+            const data = await response.json();
+            
+            if (data.url) {
+                window.location.href = data.url;
+            } else {
+                console.error("Erro na resposta do checkout:", data);
+                alert("Ocorreu um erro ao gerar o pagamento. Tente novamente.");
+            }
         } catch (error) {
             console.error("Erro no checkout:", error);
+            alert("Erro de conexão. Verifique sua internet.");
         }
     };
 
