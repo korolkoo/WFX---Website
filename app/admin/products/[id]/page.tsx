@@ -406,7 +406,7 @@ export default function EditProductPage() {
                             <div>
                                 <label className="block text-sm font-medium text-slate-400 mb-1">Categoria</label>
                                 <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-blue-500 outline-none cursor-pointer">
-                                    {['Anéis', 'Berloques', 'Brincos', 'Escapulários', 'Gargantilhas', 'Pingentes', 'Pulseiras'].map(c => <option key={c} value={c}>{c}</option>)}
+                                    {['Anéis', 'Berloques', 'Brincos', 'Escapulários', 'Gargantilhas', 'Pingentes', 'Pulseiras', 'Relicários', 'Acessórios'].map(c => <option key={c} value={c}>{c}</option>)}
                                 </select>
                             </div>
                         </div>

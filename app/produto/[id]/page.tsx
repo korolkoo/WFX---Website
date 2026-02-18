@@ -3,7 +3,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { useEffect, useState, Suspense, use, useMemo, useRef } from 'react';
 import { useTheme } from "next-themes";
-import { Moon, Sun, ShoppingBag, Instagram, Mail, Phone, Code, ChevronLeft, ChevronRight, Maximize2, AlertCircle, Menu, X, Ruler, Gem, Layers, Scale, User } from "lucide-react";
+import { Moon, Sun, ShoppingBag, Instagram, Mail, Phone, Code, ChevronLeft, ChevronRight, Maximize2, AlertCircle, Menu, X, Ruler, Gem, Layers, Scale, User, AlertTriangle, MessageCircle, Droplet } from "lucide-react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Stage, useGLTF, Loader, Environment } from "@react-three/drei";
 import * as THREE from 'three';
@@ -496,11 +496,38 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               </div>
 
               {/* SEÇÃO INFERIOR - BOTÃO DE CARRINHO */}
-              <div className="mt-auto pt-6 border-t border-wfx-border/50">
-                <button onClick={() => addItem(product)} className="w-full bg-wfx-primary hover:bg-blue-600 text-white font-bold py-4 px-6 rounded shadow-lg shadow-blue-500/20 transform active:scale-95 transition-all flex items-center justify-center gap-3">
-                  <ShoppingBag size={20} /> ADICIONAR AO CARRINHO
-                </button>
-                <p className="text-xs text-wfx-muted text-center mt-3">Download imediato após pagamento.</p>
+              <div className="mt-8 pt-6 border-t border-wfx-border/50">
+                {product.usage === 'Borracha' ? (
+                  /* --- ESTADO: MOLDE DE BORRACHA (Micro-ajustes de espaçamento) --- */
+                  <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 text-center shadow-inner">
+                    <div className="w-8 h-8 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-1.5">
+                      <AlertTriangle className="text-amber-500" size={16} />
+                    </div>
+                    <h4 className="text-amber-500 font-black text-[11px] uppercase tracking-wider mb-1">Aquisição Sob Consulta</h4>
+                    <p className="text-[10px] text-wfx-muted mb-3 leading-tight px-1">
+                      Matrizes para borracha exigem o ajuste da <strong>taxa de contração</strong> da sua vulcanização.
+                    </p>
+                    <Link
+                      href="/atendimento"
+                      className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 px-6 rounded-lg shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2 group text-xs"
+                    >
+                      <MessageCircle size={16} />
+                      <span>FALAR COM ESPECIALISTA</span>
+                    </Link>
+                  </div>
+                ) : (
+                  /* --- ESTADO: PROTOTIPAGEM (Intacto) --- */
+                  <>
+                    <button onClick={() => addItem(product)} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-6 rounded-lg shadow-lg shadow-blue-600/25 transform active:scale-[0.98] transition-all flex items-center justify-center gap-3 group">
+                      <ShoppingBag size={20} className="group-hover:animate-bounce" />
+                      ADICIONAR AO CARRINHO
+                    </button>
+                    <div className="flex items-center justify-center gap-2 mt-4 text-[10px] text-wfx-muted font-medium">
+                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                      Arquivo verificado e pronto para impressão 3D.
+                    </div>
+                  </>
+                )}
               </div>
 
             </div>
@@ -509,23 +536,24 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
       </main>
 
       {/* FOOTER */}
-      <footer id="sobre" className="bg-wfx-bg text-wfx-text border-t border-wfx-text/10 dark:border-slate-800/50 py-10 transition-colors duration-150 ease-out text-center md:text-left">
+      <footer id="sobre" className="relative bg-wfx-bg text-wfx-text border-t border-wfx-text/10 dark:border-slate-800/50 py-10 transition-colors duration-150 ease-out text-center md:text-left mt-10">
+        
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-4">
 
-          {/* COLUNA 1: MARCA */}
+          {/* COLUNA 1: MARCA & SOBRE */}
           <div className="md:col-span-4 space-y-4">
             <div className="flex items-center justify-center md:justify-start gap-2">
               <Image
                 src="/logo.png"
                 alt="WFX Logo Footer"
                 width={80}
-                height={30}
+                height={50}
                 className="object-contain"
               />
               <div className="w-1.5 h-1.5 bg-wfx-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
             </div>
             <p className="text-wfx-muted text-xs md:text-sm leading-relaxed max-w-sm mx-auto md:mx-0">
-              Especialista em modelagem 3D técnica para alta joalheria. Garantindo precisão para prototipagem e moldes de borracha.
+              Especialista em modelagem 3D técnica para alta joalheria. Garantindo precisão milimétrica para prototipagem e moldes de borracha.
             </p>
           </div>
 
@@ -573,24 +601,53 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             </ul>
           </div>
 
-          {/* COLUNA 4: DEV */}
-          <div className="md:col-span-3 flex flex-col items-center md:items-end justify-start space-y-4">
-            <span className="text-[10px] font-bold text-wfx-muted uppercase tracking-[0.2em]">Design & Development</span>
-            <a
-              href="https://instagram.com/yurikorolko"
-              target="_blank"
-              className="inline-flex items-center gap-3 bg-wfx-card border border-wfx-text/10 px-4 py-2 rounded-full shadow-sm transition-all duration-150 ease-out transform-gpu hover:shadow-md hover:border-wfx-primary/50 hover:-translate-y-1 active:scale-95 group"
-            >
-              <div className="p-1 rounded-full bg-wfx-text/5 group-hover:bg-wfx-primary/10 transition-colors duration-150">
-                <Code size={14} className="text-wfx-primary" />
+          {/* COLUNA 4: DEV & SELO DE RESINA */}
+          <div className="md:col-span-3 flex flex-col items-center md:items-end justify-start space-y-8">
+            
+            {/* Bloco de Desenvolvimento */}
+            <div className="flex flex-col items-center md:items-end">
+              <span className="text-[10px] font-bold text-wfx-muted uppercase tracking-[0.2em] mb-3">Design & Development</span>
+              <a
+                href="https://instagram.com/yurikorolko"
+                target="_blank"
+                className="inline-flex items-center gap-3 bg-wfx-card border border-wfx-text/10 px-4 py-2 rounded-full shadow-sm transition-all duration-150 ease-out transform-gpu hover:shadow-md hover:border-wfx-primary/50 hover:-translate-y-1 active:scale-95 group"
+              >
+                <div className="p-1 rounded-full bg-wfx-text/5 group-hover:bg-wfx-primary/10 transition-colors duration-150">
+                  <Code size={14} className="text-wfx-primary" />
+                </div>
+                <span className="font-bold text-xs tracking-tight transition-colors duration-150 group-hover:text-wfx-primary">@yurikorolko</span>
+              </a>
+            </div>
+
+            {/* --- NOVO TECH BADGE DE RESINA (AZUL) --- */}
+            <div className="flex flex-col items-center md:items-end group cursor-default">
+              <span className="text-[9px] font-bold text-wfx-muted uppercase tracking-[0.1em] mb-2 text-center md:text-right">
+                Resina Utilizada para Testes:
+              </span>
+              
+              <div className="flex items-center gap-3 bg-wfx-bg/50 backdrop-blur-sm border border-wfx-text/10 px-4 py-2.5 rounded-lg shadow-sm transition-all duration-300 hover:border-wfx-primary/40 hover:shadow-[0_0_15px_rgba(59,130,246,0.15)]">
+                
+                {/* Ícone de Resina (Gota) com fundo sutil */}
+                <div className="p-1.5 rounded-md bg-wfx-primary/10 text-wfx-primary border border-wfx-primary/20 transition-colors duration-300 group-hover:bg-wfx-primary/20">
+                  <Droplet size={18} strokeWidth={2.5} />
+                </div>
+                
+                {/* Texto da Resina */}
+                <div className="flex flex-col text-left">
+                  <span className="text-[13px] font-black text-wfx-text tracking-wide leading-none transition-colors duration-300 group-hover:text-wfx-primary">
+                    WAX PRO 60
+                  </span>
+                  <span className="text-[8px] uppercase tracking-wider text-wfx-primary/80 font-bold mt-1 leading-none">
+                    Fundição Direta
+                  </span>
+                </div>
               </div>
-              <span className="font-bold text-xs tracking-tight transition-colors duration-150 group-hover:text-wfx-primary">@yurikorolko</span>
-            </a>
+            </div>
           </div>
         </div>
 
         {/* --- RODAPÉ INFERIOR --- */}
-        <div className="max-w-7xl mx-auto px-6 mt-10 pt-6 border-t border-wfx-text/10 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-6 md:gap-4 text-[10px]">
+        <div className="max-w-7xl mx-auto px-6 mt-12 pt-6 border-t border-wfx-text/10 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-6 md:gap-4 text-[10px]">
 
           {/* Lado Esquerdo: Dados Legais */}
           <div className="text-wfx-muted font-medium leading-relaxed text-center md:text-left">

@@ -154,8 +154,7 @@ export default function NewProductPage() {
         material_config: materialConfig,
         
         // --- AQUI ESTÁ A CORREÇÃO ---
-        stones_info: stonesSummary, // Salva o texto legível
-        stones: stoneRows           // Salva o JSON estruturado para edição futura
+        stones_info: stonesSummary || 'Sem pedras' // Salva o texto legível
       });
 
       if (error) throw error;
@@ -252,7 +251,7 @@ export default function NewProductPage() {
               </div>
               <ModelConfigurator 
                 fileUrl={glbPreviewUrl} 
-                initialConfig={{}} 
+                initialConfig={materialConfig} 
                 onConfigChange={setMaterialConfig} 
               />
             </div>
@@ -279,7 +278,7 @@ export default function NewProductPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1">Categoria</label>
                 <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-blue-500 outline-none cursor-pointer">
-                  {['Anéis', 'Berloques', 'Brincos', 'Escapulários', 'Gargantilhas', 'Pingentes', 'Pulseiras'].map(c => <option key={c} value={c}>{c}</option>)}
+                  {['Anéis', 'Berloques', 'Brincos', 'Escapulários', 'Gargantilhas', 'Pingentes', 'Pulseiras', 'Relicários', 'Acessórios'].map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>

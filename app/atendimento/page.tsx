@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTheme } from "next-themes";
-import { Moon, Sun, ShoppingBag, Instagram, X, Menu, MessageCircle, Check, Copy, User } from "lucide-react";
+import { Moon, Sun, ShoppingBag, Instagram, X, Menu, MessageCircle, Check, Copy, User, AlertTriangle } from "lucide-react";
 import { useState } from 'react';
 import { useCartStore } from "@/store/useCartStore";
 import CartSidebar from "@/components/CartSidebar";
@@ -75,7 +75,22 @@ export default function AtendimentoPage() {
                     <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-wfx-text leading-tight">Design Sob Medida <br /><span className="text-wfx-primary">para Você.</span></h1>
                     <p className="text-lg md:text-xl text-wfx-muted leading-relaxed">Não achou o que procurava no catálogo mas gostou do meu trabalho?{' '}<br className="hidden md:block" />Me envie uma mensagem que faço a peça exatamente como você gostaria!</p>
 
-                    <div className="grid gap-4 md:grid-cols-2 pt-8">
+                    {/* --- NOVO BLOCO: AVISO MOLDE DE BORRACHA --- */}
+                    <div className="bg-slate-500/5 border border-slate-500/20 rounded-2xl p-5 text-left flex flex-col md:flex-row items-center md:items-start gap-4 shadow-inner mt-4">
+                        <div className="w-12 h-12 bg-slate-500/10 rounded-full flex items-center justify-center shrink-0">
+                            <AlertTriangle className="text-slate-400" size={24} />
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-slate-300 font-black text-sm uppercase tracking-wider mb-1.5 text-center md:text-left">
+                                Matrizes para Molde de Borracha
+                            </h3>
+                            <p className="text-sm text-wfx-muted leading-relaxed text-center md:text-left">
+                                Adotamos o conceito de revisar e adaptar cada arquivo 3D ao processo de fundição exclusivo da sua empresa. Como as <strong>taxas de contração da borracha e do metal</strong> variam, fazemos questão de alinhar esses parâmetros técnicos com você para garantir a perfeição milimétrica da joia final. Envie o link ou print do modelo desejado no WhatsApp e faremos o ajuste sob medida.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2 pt-6">
                         {/* Botão WhatsApp */}
                         <a href="https://wa.me/5554996704599" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-3 bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-lg shadow-lg shadow-green-600/20 transition-all hover:-translate-y-1">
                             <MessageCircle size={24} /> Conversar no WhatsApp
