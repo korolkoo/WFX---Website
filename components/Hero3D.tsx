@@ -1,44 +1,72 @@
 "use client";
 
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, PerspectiveCamera, Environment, ContactShadows, Float, useGLTF } from "@react-three/drei";
-import { useState, useEffect, useRef, Suspense, useMemo } from "react";
+import { OrbitControls, PerspectiveCamera, Environment, Float, useGLTF, Center } from "@react-three/drei";
+import { useRef, Suspense, useMemo } from "react";
 import * as THREE from "three";
 
-// Pre-carrega para evitar lags na troca
+// Pre-carrega o fallback
 useGLTF.preload("/models/pingente_v2.glb");
 
-function JewelryModel({ type }: { type: number }) {
+interface Hero3DProps {
+  glbUrl?: string;
+  materialConfig?: any;
+}
+
+// OS MATERIAIS DE ALTA QUALIDADE IDÊNTICOS AOS DA PÁGINA DO PRODUTO
+const MATERIALS = {
+  gold: new THREE.MeshPhysicalMaterial({ color: "#FFD700", metalness: 1.0, roughness: 0.15, clearcoat: 1.0, envMapIntensity: 2.0 }),
+  silver: new THREE.MeshPhysicalMaterial({ color: "#FFFFFF", emissive: "#111111", metalness: 1.0, roughness: 0.0, clearcoat: 1.0, envMapIntensity: 2.5 }),
+  diamond: new THREE.MeshPhysicalMaterial({ color: "#ffffff", metalness: 0.1, roughness: 0, transmission: 1, thickness: 10, ior: 2.4, envMapIntensity: 5, dispersion: 15 }),
+  ruby: new THREE.MeshPhysicalMaterial({ color: "#ff0000", emissive: "#330000", metalness: 0.1, roughness: 0, transmission: 0.6, thickness: 10, ior: 1.76, envMapIntensity: 3, clearcoat: 1.0, attenuationColor: new THREE.Color("#ff0000"), attenuationDistance: 5 }),
+  sapphire: new THREE.MeshPhysicalMaterial({ color: "#0000ff", emissive: "#000033", metalness: 0.1, roughness: 0, transmission: 0.6, thickness: 10, ior: 1.76, envMapIntensity: 3, clearcoat: 1.0, attenuationColor: new THREE.Color("#0000ff"), attenuationDistance: 5 }),
+  emerald: new THREE.MeshPhysicalMaterial({ color: "#00ff00", emissive: "#003300", metalness: 0.1, roughness: 0, transmission: 0.6, thickness: 10, ior: 1.57, envMapIntensity: 3, clearcoat: 1.0, attenuationColor: new THREE.Color("#00ff00"), attenuationDistance: 5 }),
+};
+
+function JewelryModel({ glbUrl, materialConfig }: Hero3DProps) {
   const meshRef = useRef<THREE.Group>(null);
   
-  // Carrega o GLB
-  const { scene: originalScene } = useGLTF("/models/pingente_v2.glb");
+  const actualUrl = glbUrl || "/models/pingente_v2.glb";
+  const { scene: originalScene } = useGLTF(actualUrl);
 
-  // OTIMIZAÇÃO: Clona a cena e aplica o material APENAS UMA VEZ
-  // O useMemo garante que isso não rode 60x por segundo, travando o PC
   const scene = useMemo(() => {
-    const clonedScene = originalScene.clone();
+    const clonedScene = originalScene.clone(true);
     
-    // Material de Ouro Otimizado
-    const goldMaterial = new THREE.MeshStandardMaterial({
-      color: "#FFD700",
-      metalness: 1,
-      roughness: 0.2, // Um pouco mais áspero gasta menos processamento de reflexo
-      envMapIntensity: 1, 
-    });
+    clonedScene.traverse((child: any) => {
+      if (child.isMesh) {
+        let materialToApply = null;
+        const partConfig = materialConfig ? materialConfig[child.name] : null;
 
-    // Aplica o material em tudo de uma vez
-    clonedScene.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh) {
-        (child as THREE.Mesh).material = goldMaterial;
-        // OTIMIZAÇÃO: Liga e desliga sombras conforme a necessidade
-        (child as THREE.Mesh).castShadow = true;
-        (child as THREE.Mesh).receiveShadow = true;
+        // Se tem configuração no banco (String ou Objeto de Resina)
+        if (partConfig) {
+          if (typeof partConfig === 'string' && MATERIALS[partConfig as keyof typeof MATERIALS]) {
+            materialToApply = MATERIALS[partConfig as keyof typeof MATERIALS];
+          } 
+          else if (typeof partConfig === 'object' && partConfig.type === 'resin') {
+            materialToApply = new THREE.MeshPhysicalMaterial({
+              color: partConfig.color, metalness: 0.0, roughness: 0.1, clearcoat: 1.0, clearcoatRoughness: 0.05, reflectivity: 0.5, ior: 1.5, envMapIntensity: 1.2, side: THREE.DoubleSide
+            });
+          }
+        }
+
+        // Se não tem, detecta pelo nome
+        if (!materialToApply) {
+          let fullID = child.name.toLowerCase();
+          if (fullID.includes("prata") || fullID.includes("silver")) materialToApply = MATERIALS.silver;
+          else if (fullID.includes("rubi")) materialToApply = MATERIALS.ruby;
+          else if (fullID.includes("esmeralda")) materialToApply = MATERIALS.emerald;
+          else if (fullID.includes("diamante") || fullID.includes("pedra")) materialToApply = MATERIALS.diamond;
+          else materialToApply = MATERIALS.gold;
+        }
+
+        if (materialToApply) child.material = materialToApply;
+        child.castShadow = true;
+        child.receiveShadow = true;
       }
     });
 
     return clonedScene;
-  }, [originalScene]);
+  }, [originalScene, materialConfig]);
 
   useFrame((state, delta) => {
     if (meshRef.current) {
@@ -46,84 +74,38 @@ function JewelryModel({ type }: { type: number }) {
     }
   });
 
-  const silverMaterial = new THREE.MeshStandardMaterial({
-    color: "#ffffff",
-    metalness: 0.9,
-    roughness: 0.1,
-  });
-
-  const simpleGoldMaterial = new THREE.MeshStandardMaterial({
-    color: "#FFD700",
-    metalness: 1,
-    roughness: 0.15,
-  });
-
   return (
     <group ref={meshRef}>
       <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
-        
-        {/* MODELO 1: GLB OTIMIZADO */}
-        {type === 0 && (
-          <primitive 
-            object={scene} 
-            rotation={[0, 0, 0]}  // Mudei para zero. Se precisar ajustar, mexa aqui.
-            scale={0.18} 
-          />
-        )}
-
-        {/* MODELO 2: BRINCO */}
-        {type === 1 && (
-          <group>
-            <mesh material={silverMaterial} position={[-0.8, 0.5, 0]} rotation={[0, 1.5, 0]}>
-              <torusGeometry args={[1, 0.1, 16, 32]} /> {/* Reduzi segmentos de 50 para 32 */}
-            </mesh>
-            <mesh material={silverMaterial} position={[0.8, -0.5, 0]} rotation={[0, 1.5, 0]}>
-              <torusGeometry args={[1, 0.1, 16, 32]} />
-            </mesh>
-          </group>
-        )}
-
-        {/* MODELO 3: PINGENTE */}
-        {type === 2 && (
-          <mesh material={simpleGoldMaterial}>
-             <octahedronGeometry args={[2, 0]} />
-          </mesh>
-        )}
+          <Center>
+            <primitive 
+              object={scene} 
+              rotation={[0, 0, 0]}  
+              scale={0.25}
+            />
+          </Center>
       </Float>
     </group>
   );
 }
 
-export default function Hero3D() {
-  const [currentModel, setCurrentModel] = useState(0);
-
-  // Reduzi a frequência de troca para pesar menos
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentModel((prev) => (prev + 1) % 3);
-    }, 5000); 
-    return () => clearInterval(interval);
-  }, []);
-
+export default function Hero3D({ glbUrl, materialConfig }: Hero3DProps) {
   return (
-    <div className="w-full h-full min-h-[400px]">
-      {/* dpr={[1, 2]}: Limita a resolução em telas Retina (evita renderizar 4k em macbook)
-         gl={{ powerPreference: "high-performance" }}: Pede pro PC usar a placa de vídeo dedicada
-      */}
+    <div className="w-full h-full">
       <Canvas dpr={[1, 2]} gl={{ powerPreference: "high-performance", antialias: true }}>
         <PerspectiveCamera makeDefault position={[4, 2, 6]} fov={45} />
         
-        {/* Reduzi a intensidade das luzes para evitar estouro de branco */}
+        {/* Iluminação Idêntica a da Página do Produto */}
         <ambientLight intensity={0.5} />
-        <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={80} /> {/* Tirei o castShadow */}
-        <Environment preset="city" />
+        <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} castShadow color="#ffffff" />
+        <pointLight position={[-10, -10, -10]} intensity={1} color="#ffffff" />
+        <Environment preset="city" blur={0.8} />
         
         <Suspense fallback={null}>
-            <JewelryModel type={currentModel} />
+            <JewelryModel glbUrl={glbUrl} materialConfig={materialConfig} />
         </Suspense>
 
         <OrbitControls enableZoom={false} enablePan={false} autoRotate={false} />
-        
       </Canvas>
     </div>
   );

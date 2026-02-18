@@ -37,6 +37,8 @@ interface Product {
   description?: string;
   stones_info?: string;
   size?: string;
+  glb_url?: string;
+  material_config?: any;
 }
 
 function HomeContent() {
@@ -56,16 +58,36 @@ function HomeContent() {
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // --- ESTADOS DO CARROSSEL 3D ---
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [featuredIndex, setFeaturedIndex] = useState(0);
+
   const categoriesList = ['Anéis', 'Berloques', 'Brincos', 'Escapulários', 'Gargantilhas', 'Pingentes', 'Pulseiras', 'Relicários', 'Acessórios'];
 
   useEffect(() => {
     setMounted(true);
-    async function fetchGlobalTotal() {
+    async function fetchInitialData() {
       const { count } = await supabase.from('products').select('*', { count: 'exact', head: true });
       if (count) setGlobalTotal(count);
+
+      const { data } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (data) setFeaturedProducts(data as Product[]);
     }
-    fetchGlobalTotal();
+    fetchInitialData();
   }, []);
+
+  useEffect(() => {
+    if (featuredProducts.length <= 1) return;
+    const interval = setInterval(() => {
+      setFeaturedIndex((prev) => (prev + 1) % featuredProducts.length);
+    }, 8000); 
+    return () => clearInterval(interval);
+  }, [featuredProducts]);
 
   useEffect(() => {
     const action = searchParams.get('action');
@@ -212,9 +234,12 @@ function HomeContent() {
       </header>
 
       <main>
-        {/* Banner Hero */}
-        <section className="border-b border-wfx-border bg-wfx-card/50 flex items-center py-12 md:py-0 min-h-[calc(100vh-80px)]">
+        {/* --- BANNER HERO 3D (Lado Esquerdo Intacto) --- */}
+        <section className="border-b border-wfx-border bg-wfx-card/50 flex items-center py-12 md:py-0 min-h-[calc(100vh-80px)] overflow-hidden">
+          
           <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center w-full h-full">
+
+            {/* Lado Esquerdo Original */}
             <div className="space-y-4 md:space-y-6 text-center md:text-left order-2 md:order-1">
               <h1 className="text-4xl md:text-6xl font-bold leading-tight tracking-tight text-wfx-text">
                 Modelagem Técnica <br />
@@ -223,11 +248,69 @@ function HomeContent() {
               <p className="text-wfx-muted text-base md:text-lg max-w-md leading-relaxed mx-auto md:mx-0">
                 Arquivos STL validados para Prototipagem e Moldes de Borracha.
               </p>
-              <a href="#catalogo" className="inline-block px-8 py-4 bg-wfx-text text-wfx-bg font-bold text-sm uppercase tracking-wide hover:opacity-90 transition-opacity mt-4">Ver Catálogo</a>
+              <a href="#catalogo" className="inline-block px-8 py-4 bg-wfx-text text-wfx-bg font-bold text-sm uppercase tracking-wide hover:opacity-90 transition-opacity mt-4">
+                Ver Catálogo
+              </a>
             </div>
-            <div className="relative w-full h-[350px] md:h-[600px] flex items-center justify-center overflow-visible z-10 order-1 md:order-2">
-              <Hero3D />
+
+            {/* Lado Direito: Layout Flex com Margens Seguras (sem cortes) */}
+            <div className="relative w-full flex flex-col items-center justify-center py-8 order-1 md:order-2 z-10 min-h-[500px]">
+                
+                {/* Texto Superior com Lançamento em Destaque */}
+                {featuredProducts.length > 0 && (
+                  <div className="text-center z-20 animate-in fade-in slide-in-from-top-4 duration-700 pointer-events-none drop-shadow-md shrink-0 mb-6 flex flex-col items-center">
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-wfx-primary mb-1">
+                      LANÇAMENTO
+                    </span>
+                    <span className="text-[8px] font-bold uppercase tracking-[0.15em] text-wfx-muted mb-1.5">
+                      {featuredProducts[featuredIndex].category}
+                    </span>
+                    <h2 className="text-lg md:text-xl font-bold text-wfx-text/90 leading-tight">
+                      {featuredProducts[featuredIndex].title}
+                    </h2>
+                  </div>
+                )}
+
+                {/* Container do 3D fixo para não invadir as letras */}
+                <div className="relative w-full h-[400px] md:h-[500px] lg:h-[550px] shrink-0">
+                  <div className="absolute inset-0 bg-wfx-primary/5 blur-[120px] rounded-full pointer-events-none"></div>
+                  
+                  {featuredProducts.length > 0 && featuredProducts[featuredIndex].glb_url ? (
+                    <Hero3D 
+                      key={featuredProducts[featuredIndex].id} 
+                      glbUrl={featuredProducts[featuredIndex].glb_url} 
+                      materialConfig={featuredProducts[featuredIndex].material_config} 
+                    />
+                  ) : (
+                    <Hero3D />
+                  )}
+                </div>
+
+                {/* Texto Inferior sem Preço e com Carrossel Azul Sólido */}
+                {featuredProducts.length > 0 && (
+                  <div className="text-center z-20 animate-in fade-in slide-in-from-bottom-4 duration-700 shrink-0 mt-4">
+                      <Link href={`/produto/${featuredProducts[featuredIndex].id}`} className="text-[10px] font-bold uppercase tracking-[0.1em] text-wfx-muted hover:text-wfx-primary transition-colors block mb-4">
+                        Ver Detalhes &rarr;
+                      </Link>
+
+                      <div className="flex justify-center gap-2">
+                        {featuredProducts.map((_, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => setFeaturedIndex(idx)}
+                            className={`h-1.5 rounded-full transition-all duration-300 ${
+                              featuredIndex === idx 
+                                ? 'w-6 bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]' // Azul vivo com leve brilho
+                                : 'w-1.5 bg-wfx-border hover:bg-wfx-muted'
+                            }`}
+                            aria-label={`Ver lançamento ${idx + 1}`}
+                          />
+                        ))}
+                      </div>
+                  </div>
+                )}
             </div>
+
           </div>
         </section>
 
