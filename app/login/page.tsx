@@ -36,7 +36,7 @@ export default function LoginPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  
+
 
   const router = useRouter();
   const supabase = createClient();
@@ -48,7 +48,7 @@ export default function LoginPage() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${getURL()}auth/callback`,
+        redirectTo: `${getURL()}auth/callback?next=/perfil`,
         queryParams: { access_type: 'offline', prompt: 'consent' },
       }
     });

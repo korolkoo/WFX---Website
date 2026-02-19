@@ -35,6 +35,13 @@ export async function middleware(request: NextRequest) {
 
   // --- LÓGICA DE PROTEÇÃO DE ROTAS ---
 
+  // Proteção do Perfil: Se tentar acessar /profile e não estiver logado -> Manda pro Login
+  if (request.nextUrl.pathname.startsWith('/profile')) {
+    if (!user) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+  }
+
   // Se tentar acessar /admin*
   if (request.nextUrl.pathname.startsWith('/admin')) {
     
