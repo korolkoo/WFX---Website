@@ -3,7 +3,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { useEffect, useState, Suspense, use, useMemo, useRef } from 'react';
 import { useTheme } from "next-themes";
-import { Moon, Sun, ShoppingBag, Instagram, Mail, Phone, Code, ChevronLeft, ChevronRight, Maximize2, AlertCircle, Menu, X, Ruler, Gem, Layers, Scale, User, AlertTriangle, MessageCircle, Droplet } from "lucide-react";
+import { Moon, Sun, ShoppingBag, Instagram, Mail, Phone, Code, ChevronLeft, ChevronRight, Maximize2, AlertCircle, Menu, X, Ruler, Gem, Layers, Scale, User, AlertTriangle, MessageCircle, Droplet, Share2, Check } from "lucide-react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Stage, useGLTF, Loader, Environment } from "@react-three/drei";
 import * as THREE from 'three';
@@ -159,6 +159,72 @@ function ModelViewer({ url, config }: { url: string, config?: any }) {
   }, [scene, config]);
 
   return <Stage environment="city" intensity={1} shadows={false} adjustCamera={false}><primitive object={scene} /></Stage>;
+}
+
+// ==============================================================================
+// 4.5 COMPONENTE: BOTÃO DE COMPARTILHAR
+// ==============================================================================
+function ShareButton({ productTitle }: { productTitle: string }) {
+  const [copiado, setCopiado] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+
+  const handleShare = async () => {
+    const shareData = {
+      title: `WFX.stl - ${productTitle}`,
+      text: `Confira este modelo 3D: ${productTitle}`,
+      url: window.location.href,
+    };
+
+    // 1. Tenta usar o compartilhamento nativo do celular
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      try {
+        await navigator.share(shareData);
+        return; // Se deu certo e a gaveta abriu, paramos por aqui!
+      } catch (err) {
+        console.log("Compartilhamento nativo cancelado ou não suportado na hora: ", err);
+        // Se o usuário fechar a gaveta sem compartilhar, o código segue pro Fallback abaixo
+      }
+    }
+
+    // 2. Fallback: Copia para a área de transferência e mostra o aviso flutuante
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopiado(true);
+      setShowToast(true); // Ativa o balão flutuante
+      
+      // Some com o aviso depois de 3 segundos
+      setTimeout(() => {
+        setCopiado(false);
+        setShowToast(false);
+      }, 3000); 
+    } catch (err) {
+      console.error("Erro ao copiar: ", err);
+    }
+  };
+
+  return (
+    <>
+      <button
+        onClick={handleShare}
+        className="text-wfx-muted hover:text-wfx-primary transition-colors outline-none flex items-center justify-center mt-0.5"
+        title="Compartilhar peça"
+      >
+        {copiado ? <Check size={22} className="text-green-500 animate-in fade-in" /> : <Share2 size={22} />}
+      </button>
+
+      {/* AVISO FLUTUANTE (TOAST) */}
+      {showToast && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-gray-900 dark:bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 z-[9999] animate-in slide-in-from-bottom-5 fade-in duration-300 border border-gray-700">
+          <div className="bg-green-500/20 p-1 rounded-full">
+            <Check size={16} className="text-green-400" />
+          </div>
+          <span className="text-sm font-bold tracking-wide whitespace-nowrap">
+            Link copiado para a área de transferência!
+          </span>
+        </div>
+      )}
+    </>
+  );
 }
 
 // ==============================================================================
@@ -375,7 +441,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               <p className="font-bold text-sm text-wfx-primary mb-2">Não gostou de algo na peça? Tem alguma dúvida?</p>
               <p className="text-sm text-wfx-muted mb-4">Entre em contato comigo para ajustes personalizados antes da compra:</p>
               <div className="flex justify-center gap-6 text-sm font-bold text-wfx-text">
-                <a href="https://instagram.com/WFX" target="_blank" className="hover:text-wfx-primary transition-colors flex items-center gap-2 px-4 py-2 bg-wfx-bg rounded border border-wfx-border/50"><Instagram size={16} /> @WFX</a>
+                <a href="https://instagram.com/wfx.joias" target="_blank" className="hover:text-wfx-primary transition-colors flex items-center gap-2 px-4 py-2 bg-wfx-bg rounded border border-wfx-border/50"><Instagram size={16} /> @WFX</a>
                 <a href="https://wa.me/5554996704599" target="_blank" className="hover:text-wfx-primary transition-colors flex items-center gap-2 px-4 py-2 bg-wfx-bg rounded border border-wfx-border/50"><Phone size={16} /> +55 (54) 99670-4599</a>
               </div>
             </div>
@@ -395,15 +461,31 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               <div>
                 <div className="pb-3 border-b border-wfx-border/50">
                   <span className="text-xs text-wfx-primary font-bold uppercase tracking-widest mb-1 block">{product.category}</span>
+
                   <div className="flex justify-between items-start gap-4">
-                    <h1 className="text-2xl font-extrabold text-wfx-text leading-tight flex-1">{product.title}</h1>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-slate-400 dark:text-slate-600 text-2xl font-light hidden sm:block">|</span>
+
+                    {/* TÍTULO - min-w-0 e break-words resolvem o bug do nome gigante */}
+                    <h1 className="text-2xl font-extrabold text-wfx-text leading-tight flex-1 min-w-0 break-words">
+                      {product.title}
+                    </h1>
+
+                    {/* PREÇO E BOTÃO - Mantidos rígidos na direita (shrink-0) */}
+                    <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+
+                      {/* BOTÃO E BARRINHA JUNTOS */}
+                      <div className="flex items-center gap-2 text-slate-300 dark:text-slate-700">
+                        <ShareButton productTitle={product.title} />
+                        <span className="text-3xl font-light pb-1">|</span>
+                      </div>
+
+                      {/* PREÇO */}
                       <div className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 tracking-tight">
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}
                       </div>
+
                     </div>
                   </div>
+
                   <p className="text-sm text-wfx-muted leading-relaxed mt-2 mb-3">{product.description || "Sem descrição adicional."}</p>
 
                   <div className="flex gap-2 flex-wrap">
@@ -537,7 +619,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
       {/* FOOTER */}
       <footer id="sobre" className="relative bg-wfx-bg text-wfx-text border-t border-wfx-text/10 dark:border-slate-800/50 py-10 transition-colors duration-150 ease-out text-center md:text-left mt-10">
-        
+
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-4">
 
           {/* COLUNA 1: MARCA & SOBRE */}
@@ -603,7 +685,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
           {/* COLUNA 4: DEV & SELO DE RESINA */}
           <div className="md:col-span-3 flex flex-col items-center md:items-end justify-start space-y-8">
-            
+
             {/* Bloco de Desenvolvimento */}
             <div className="flex flex-col items-center md:items-end">
               <span className="text-[10px] font-bold text-wfx-muted uppercase tracking-[0.2em] mb-3">Design & Development</span>
@@ -624,14 +706,14 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               <span className="text-[9px] font-bold text-wfx-muted uppercase tracking-[0.1em] mb-2 text-center md:text-right">
                 Resina Utilizada para Testes:
               </span>
-              
+
               <div className="flex items-center gap-3 bg-wfx-bg/50 backdrop-blur-sm border border-wfx-text/10 px-4 py-2.5 rounded-lg shadow-sm transition-all duration-300 hover:border-wfx-primary/40 hover:shadow-[0_0_15px_rgba(59,130,246,0.15)]">
-                
+
                 {/* Ícone de Resina (Gota) com fundo sutil */}
                 <div className="p-1.5 rounded-md bg-wfx-primary/10 text-wfx-primary border border-wfx-primary/20 transition-colors duration-300 group-hover:bg-wfx-primary/20">
                   <Droplet size={18} strokeWidth={2.5} />
                 </div>
-                
+
                 {/* Texto da Resina */}
                 <div className="flex flex-col text-left">
                   <span className="text-[13px] font-black text-wfx-text tracking-wide leading-none transition-colors duration-300 group-hover:text-wfx-primary">
