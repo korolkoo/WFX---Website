@@ -32,7 +32,7 @@ interface Product {
   image_url: string;
   file_url?: string;
   glb_url?: string;
-  material_config?: any; // Alterado para any para aceitar o JSON da resina
+  material_config?: any; 
   video_360_url?: string;
   video_real_url?: string;
   size?: string;
@@ -71,17 +71,17 @@ const MATERIALS = {
     envMapIntensity: 5, dispersion: 15
   }),
 
-  // RUBI (Vermelho "Aceso")
+  // RUBI 
   ruby: new THREE.MeshPhysicalMaterial({
-    color: "#ff0000", // Vermelho puro
-    emissive: "#330000", // Brilho interno vermelho escuro
+    color: "#ff0000", 
+    emissive: "#330000", 
     metalness: 0.1, roughness: 0, transmission: 0.6, thickness: 10, ior: 1.76,
     envMapIntensity: 3,
     clearcoat: 1.0,
     attenuationColor: new THREE.Color("#ff0000"), attenuationDistance: 5
   }),
 
-  // SAFIRA (Azul Profundo e Brilhante)
+  // SAFIRA 
   sapphire: new THREE.MeshPhysicalMaterial({
     color: "#0000ff",
     emissive: "#000033",
@@ -91,7 +91,7 @@ const MATERIALS = {
     attenuationColor: new THREE.Color("#0000ff"), attenuationDistance: 5
   }),
 
-  // ESMERALDA (Verde Radioativo)
+  // ESMERALDA 
   emerald: new THREE.MeshPhysicalMaterial({
     color: "#00ff00",
     emissive: "#003300",
@@ -105,27 +105,24 @@ const MATERIALS = {
 };
 
 // ==============================================================================
-// 4. COMPONENTE: VISUALIZADOR 3D (R3F) - CORRIGIDO PARA RESINA
+// 4. COMPONENTE: VISUALIZADOR 3D (R3F) - CORRIGIDO
 // ==============================================================================
 function ModelViewer({ url, config }: { url: string, config?: any }) {
   const { scene } = useGLTF(url) as any;
 
-  // Aplica materiais automaticamente com base no nome das meshes ou config do banco
-  useMemo(() => {
+  // CORREÇÃO AQUI: Salva o clone em uma variável e o retorna
+  const clonedScene = useMemo(() => {
     const cloned = scene.clone(true);
     cloned.traverse((child: any) => {
       if (child.isMesh) {
         let materialToApply = null;
 
-        // --- ALTERAÇÃO AQUI: Lógica híbrida (String ou Objeto de Resina) ---
         const partConfig = config ? config[child.name] : null;
 
         if (partConfig) {
-          // CASO A: Material Padrão (String antiga)
           if (typeof partConfig === 'string' && MATERIALS[partConfig as keyof typeof MATERIALS]) {
             materialToApply = MATERIALS[partConfig as keyof typeof MATERIALS];
           }
-          // CASO B: Objeto de Resina (Novo)
           else if (typeof partConfig === 'object' && partConfig.type === 'resin') {
             materialToApply = new THREE.MeshPhysicalMaterial({
               color: partConfig.color,
@@ -141,7 +138,6 @@ function ModelViewer({ url, config }: { url: string, config?: any }) {
           }
         }
 
-        // Prioridade 2: Detecção automática pelo nome (Fallback)
         if (!materialToApply) {
           let fullID = child.name.toLowerCase();
           if (fullID.includes("prata") || fullID.includes("silver")) materialToApply = MATERIALS.silver;
@@ -155,10 +151,13 @@ function ModelViewer({ url, config }: { url: string, config?: any }) {
         child.receiveShadow = true;
       }
     });
-    scene.children = cloned.children;
+    
+    // Retorna a cena clonada e processada!
+    return cloned;
   }, [scene, config]);
 
-  return <Stage environment="city" intensity={1} shadows={false} adjustCamera={false}><primitive object={scene} /></Stage>;
+  // CORREÇÃO AQUI: Passa a `clonedScene` pro primitive em vez da `scene` original
+  return <Stage environment="city" intensity={1} shadows={false} adjustCamera={false}><primitive object={clonedScene} /></Stage>;
 }
 
 // ==============================================================================
@@ -175,24 +174,20 @@ function ShareButton({ productTitle }: { productTitle: string }) {
       url: window.location.href,
     };
 
-    // 1. Tenta usar o compartilhamento nativo do celular
     if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
       try {
         await navigator.share(shareData);
-        return; // Se deu certo e a gaveta abriu, paramos por aqui!
+        return; 
       } catch (err) {
-        console.log("Compartilhamento nativo cancelado ou não suportado na hora: ", err);
-        // Se o usuário fechar a gaveta sem compartilhar, o código segue pro Fallback abaixo
+        console.log("Compartilhamento nativo cancelado: ", err);
       }
     }
 
-    // 2. Fallback: Copia para a área de transferência e mostra o aviso flutuante
     try {
       await navigator.clipboard.writeText(window.location.href);
       setCopiado(true);
-      setShowToast(true); // Ativa o balão flutuante
+      setShowToast(true); 
       
-      // Some com o aviso depois de 3 segundos
       setTimeout(() => {
         setCopiado(false);
         setShowToast(false);
@@ -212,7 +207,6 @@ function ShareButton({ productTitle }: { productTitle: string }) {
         {copiado ? <Check size={22} className="text-green-500 animate-in fade-in" /> : <Share2 size={22} />}
       </button>
 
-      {/* AVISO FLUTUANTE (TOAST) */}
       {showToast && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-gray-900 dark:bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 z-[9999] animate-in slide-in-from-bottom-5 fade-in duration-300 border border-gray-700">
           <div className="bg-green-500/20 p-1 rounded-full">
@@ -236,7 +230,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const [product, setProduct] = useState<Product | null>(null);
   const { theme, setTheme } = useTheme();
 
-  // Estados de Interface
   const [mediaIndex, setMediaIndex] = useState(0);
   const [availableMedia, setAvailableMedia] = useState<any[]>([]);
   const [mounted, setMounted] = useState(false);
@@ -244,14 +237,12 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const mediaContainerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // --- BUSCA DE DADOS ---
   useEffect(() => {
     setMounted(true);
     async function fetchProduct() {
       const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
       if (data) {
         setProduct(data as Product);
-        // Monta array de mídia disponível na ordem de prioridade
         const media = [];
         if (data.glb_url || data.file_url) media.push({ type: '3d', label: 'Visualização 3D' });
         if (data.video_360_url) media.push({ type: 'video360', label: 'Vídeo 360°', url: data.video_360_url });
@@ -263,13 +254,11 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     }
     fetchProduct();
 
-    // Listener para tecla ESC ou mudança de estado nativa do Fullscreen
     const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, [id]);
 
-  // --- PROCESSAMENTO DE LISTA DE PEDRAS ---
   const stonesList = useMemo(() => {
     if (!product?.stones_info) return null;
     return product.stones_info.split('+').map((stoneStr, idx) => {
@@ -287,10 +276,8 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     });
   }, [product?.stones_info]);
 
-  // Loading State
   if (!mounted || !product) return <div className="min-h-screen bg-wfx-bg flex items-center justify-center"><div className="w-8 h-8 border-2 border-wfx-primary border-t-transparent rounded-full animate-spin"></div></div>;
 
-  // Helpers de Mídia e Controle
   const currentMedia = availableMedia[mediaIndex] || { type: 'image' };
   const handleNextMedia = () => setMediaIndex((prev) => (prev + 1) % availableMedia.length);
   const handlePrevMedia = () => setMediaIndex((prev) => (prev - 1 + availableMedia.length) % availableMedia.length);
@@ -301,7 +288,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     else document.exitFullscreen();
   };
 
-  // Helpers de Cálculo de Peso
   const getStoneWeight = (infoString?: string) => {
     if (!infoString) return 0;
     try {
@@ -325,7 +311,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     return (calculateMetalWeight(density) + stonesTotalWeight).toFixed(2);
   };
 
-  // Scroll Suave
   const handleSobreClick = (e: React.MouseEvent) => {
     e.preventDefault();
     setMobileMenuOpen(false);
@@ -353,7 +338,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           </nav>
           <div className="flex items-center gap-2 md:gap-4">
             <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="p-2 rounded-full hover:bg-wfx-card transition-all text-wfx-muted hover:text-wfx-primary">{theme === "dark" ? <Moon size={20} /> : <Sun size={20} />}</button>
-            <Link href="/perfil" className="p-2 rounded-full hover:bg-wfx-card transition-all text-wfx-muted hover:text-wfx-primary" title="Minha Conta">
+            <Link href="/perfil" prefetch={false} className="p-2 rounded-full hover:bg-wfx-card transition-all text-wfx-muted hover:text-wfx-primary" title="Minha Conta">
               <User size={20} />
             </Link>
             <button onClick={toggleCart} className="flex items-center gap-2 px-3 md:px-4 py-2 bg-wfx-primary text-white hover:opacity-90 transition-all text-xs md:text-sm font-bold uppercase tracking-wide rounded-sm shadow-lg shadow-blue-500/20"><ShoppingBag size={16} /><span>Carrinho ({totalItems()})</span></button>
@@ -374,26 +359,17 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
       {/* --- ÁREA PRINCIPAL (MAIN) --- */}
       <main className="flex-1 min-h-[calc(100vh-80px)] flex flex-col justify-center max-w-7xl mx-auto px-6 py-6 w-full">
-
-        {/* GRID PRINCIPAL */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch w-full">
 
-          {/* === COLUNA ESQUERDA (Mídia + Dots + Contato) === */}
+          {/* === COLUNA ESQUERDA === */}
           <div className="lg:col-span-8 flex flex-col gap-6 h-full">
-
-            {/* WRAPPER MÍDIA E DOTS */}
             <div className="flex flex-col gap-4 flex-1 min-h-0">
-
-              {/* CONTAINER VISUALIZADOR 3D / FOTO / VÍDEO */}
               <div ref={mediaContainerRef} className={`relative flex-1 min-h-[550px] lg:min-h-[300px] w-full bg-wfx-bg border border-wfx-border rounded-lg overflow-hidden shadow-inner group flex items-center justify-center transition-all ${isFullscreen ? 'fixed inset-0 z-[100] h-screen border-none rounded-none' : ''}`}>
-
-                {/* Fallback de altura mínima e conteúdo */}
                 <div className="absolute inset-0">
                   {currentMedia.type === '3d' && viewerUrl && (
                     <>
                       <Canvas dpr={[1, 2]} camera={{ position: [25, 25, 25], fov: 40 }} className="h-full w-full cursor-grab active:cursor-grabbing" shadows>
                         <Environment preset="city" background={false} blur={0.8} />
-
                         <ambientLight intensity={0.5} />
                         <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} castShadow color="#ffffff" />
                         <pointLight position={[-10, -10, -10]} intensity={1} color="#ffffff" />
@@ -415,7 +391,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                   {currentMedia.type === 'image' && (<img src={product.image_url} alt={product.title} className="w-full h-full object-contain p-8" />)}
                 </div>
 
-                {/* Botões de Controle (Dentro da imagem) */}
                 <button onClick={toggleFullscreen} className="absolute top-4 right-4 bg-wfx-card/80 hover:bg-wfx-primary hover:text-white p-2 rounded-lg backdrop-blur-sm transition-all shadow-lg z-30"><Maximize2 size={20} /></button>
                 {availableMedia.length > 1 && (
                   <>
@@ -428,7 +403,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 )}
               </div>
 
-              {/* DOTS DE NAVEGAÇÃO - FORA DO CARD*/}
               <div className="flex justify-center gap-2 w-full">
                 {availableMedia.map((media, idx) => (
                   <button key={idx} onClick={() => setMediaIndex(idx)} className={`h-1.5 rounded-full transition-all ${mediaIndex === idx ? 'w-8 bg-wfx-primary' : 'w-2 bg-slate-300 dark:bg-slate-700 hover:bg-wfx-primary/50'}`} />
@@ -436,7 +410,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               </div>
             </div>
 
-            {/* CARD DE CONTATO */}
             <div className="bg-wfx-card border border-wfx-border rounded-lg p-6 text-center shadow-sm shrink-0">
               <p className="font-bold text-sm text-wfx-primary mb-2">Não gostou de algo na peça? Tem alguma dúvida?</p>
               <p className="text-sm text-wfx-muted mb-4">Entre em contato comigo para ajustes personalizados antes da compra:</p>
@@ -445,49 +418,31 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 <a href="https://wa.me/5554996704599" target="_blank" className="hover:text-wfx-primary transition-colors flex items-center gap-2 px-4 py-2 bg-wfx-bg rounded border border-wfx-border/50"><Phone size={16} /> +55 (54) 99670-4599</a>
               </div>
             </div>
-
           </div>
 
-          {/* === COLUNA DIREITA (Detalhes) === */}
+          {/* === COLUNA DIREITA === */}
           <div className="lg:col-span-4 h-full flex flex-col">
-
-            {/* --- ALTERAÇÃO AQUI: Adicionado relative e overflow-hidden --- */}
             <div className="bg-wfx-card border border-wfx-border p-5 rounded-lg shadow-xl flex flex-col h-full relative overflow-hidden">
-
-              {/* --- ALTERAÇÃO AQUI: A barra colorida no topo --- */}
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
 
-              {/* SEÇÃO SUPERIOR (Título, Preço) */}
               <div>
                 <div className="pb-3 border-b border-wfx-border/50">
                   <span className="text-xs text-wfx-primary font-bold uppercase tracking-widest mb-1 block">{product.category}</span>
-
                   <div className="flex justify-between items-start gap-4">
-
-                    {/* TÍTULO - min-w-0 e break-words resolvem o bug do nome gigante */}
                     <h1 className="text-2xl font-extrabold text-wfx-text leading-tight flex-1 min-w-0 break-words">
                       {product.title}
                     </h1>
-
-                    {/* PREÇO E BOTÃO - Mantidos rígidos na direita (shrink-0) */}
                     <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-
-                      {/* BOTÃO E BARRINHA JUNTOS */}
                       <div className="flex items-center gap-2 text-slate-300 dark:text-slate-700">
                         <ShareButton productTitle={product.title} />
                         <span className="text-3xl font-light pb-1">|</span>
                       </div>
-
-                      {/* PREÇO */}
                       <div className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 tracking-tight">
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}
                       </div>
-
                     </div>
                   </div>
-
                   <p className="text-sm text-wfx-muted leading-relaxed mt-2 mb-3">{product.description || "Sem descrição adicional."}</p>
-
                   <div className="flex gap-2 flex-wrap">
                     {product.usage === 'Prototipagem' && (<div className="flex items-center gap-2 px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded text-amber-600 text-[10px] font-bold uppercase"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Prototipagem</div>)}
                     {product.usage === 'Borracha' && (<div className="flex items-center gap-2 px-2 py-1 bg-slate-500/10 border border-slate-500/20 rounded text-slate-600 text-[10px] font-bold uppercase"><span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span> Molde Borracha</div>)}
@@ -496,13 +451,9 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 </div>
               </div>
 
-              {/* Especificações */}
               <div className="flex-1 flex flex-col pt-6">
                 <h3 className="text-xs font-bold text-wfx-text uppercase tracking-wider mb-5 flex items-center gap-2"><Layers size={14} /> Especificações</h3>
-
                 <div className="flex flex-col gap-6 flex-1">
-
-                  {/* Dimensões */}
                   {product.size && (
                     <div className="border border-wfx-border/50 rounded-lg overflow-hidden flex items-center justify-between px-4 py-4 bg-wfx-muted/5">
                       <div className="flex items-center gap-2">
@@ -513,7 +464,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                     </div>
                   )}
 
-                  {/* Pedras */}
                   {product.stones_info && (
                     <div className="border border-wfx-border/50 rounded-lg overflow-hidden">
                       <div className="bg-wfx-muted/5 px-4 py-2 border-b border-wfx-border/50 flex items-center gap-2">
@@ -526,7 +476,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                     </div>
                   )}
 
-                  {/* Peso Final */}
                   {product.volume && product.volume > 0 && (
                     <div className="border border-wfx-border/50 rounded-lg overflow-hidden">
                       <div className="bg-wfx-muted/5 px-4 py-2 border-b border-wfx-border/50 flex items-center gap-2">
@@ -536,7 +485,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                           <span className="text-[9px] opacity-70 normal-case ml-1 font-semibold tracking-normal text-wfx-primary/80">(FUNDIÇÃO + PEDRAS)</span>
                         </span>
                       </div>
-
                       <div className="grid grid-cols-2 divide-x divide-y divide-wfx-border/30 bg-wfx-bg">
                         <div className="p-3 flex justify-between items-center hover:bg-wfx-muted/5 transition-colors">
                           <div className="flex items-center gap-2 border-l-2 border-amber-600 pl-2 h-4">
@@ -544,21 +492,18 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                           </div>
                           <span className="font-mono font-bold text-sm text-wfx-text">{calculateTotalWeight(DENSITIES.brass)}g</span>
                         </div>
-
                         <div className="p-3 flex justify-between items-center hover:bg-wfx-muted/5 transition-colors">
                           <div className="flex items-center gap-2 border-l-2 border-slate-300 pl-2 h-4">
                             <span className="text-wfx-muted text-[10px] uppercase font-bold tracking-wider">Prata</span>
                           </div>
                           <span className="font-mono font-bold text-sm text-wfx-text">{calculateTotalWeight(DENSITIES.silver)}g</span>
                         </div>
-
                         <div className="p-3 flex justify-between items-center hover:bg-wfx-muted/5 transition-colors border-t border-wfx-border/30">
                           <div className="flex items-center gap-2 border-l-2 border-yellow-500 pl-2 h-4">
                             <span className="text-wfx-muted text-[10px] uppercase font-bold tracking-wider">Ouro 10k</span>
                           </div>
                           <span className="font-mono font-bold text-sm text-wfx-text">{calculateTotalWeight(DENSITIES.gold10k)}g</span>
                         </div>
-
                         <div className="p-3 flex justify-between items-center hover:bg-wfx-muted/5 transition-colors border-t border-wfx-border/30">
                           <div className="flex items-center gap-2 border-l-2 border-yellow-400 pl-2 h-4">
                             <span className="text-wfx-muted text-[10px] uppercase font-bold tracking-wider">Ouro 18k</span>
@@ -566,7 +511,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                           <span className="font-mono font-bold text-sm text-wfx-text">{calculateTotalWeight(DENSITIES.gold18k)}g</span>
                         </div>
                       </div>
-
                       <div className="bg-wfx-muted/5 px-3 py-2 border-t border-wfx-border/50">
                         <p className="text-[9px] text-wfx-muted italic text-center">
                           * Peso da peça real estimado com base no peso do arquivo digital.
@@ -577,10 +521,8 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 </div>
               </div>
 
-              {/* SEÇÃO INFERIOR - BOTÃO DE CARRINHO */}
               <div className="mt-8 pt-6 border-t border-wfx-border/50">
                 {product.usage === 'Borracha' ? (
-                  /* --- ESTADO: MOLDE DE BORRACHA (Micro-ajustes de espaçamento) --- */
                   <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 text-center shadow-inner">
                     <div className="w-8 h-8 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-1.5">
                       <AlertTriangle className="text-amber-500" size={16} />
@@ -598,7 +540,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                     </Link>
                   </div>
                 ) : (
-                  /* --- ESTADO: PROTOTIPAGEM (Intacto) --- */
                   <>
                     <button onClick={() => addItem(product)} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-6 rounded-lg shadow-lg shadow-blue-600/25 transform active:scale-[0.98] transition-all flex items-center justify-center gap-3 group">
                       <ShoppingBag size={20} className="group-hover:animate-bounce" />
@@ -611,7 +552,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                   </>
                 )}
               </div>
-
             </div>
           </div>
         </div>
@@ -619,27 +559,16 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
       {/* FOOTER */}
       <footer id="sobre" className="relative bg-wfx-bg text-wfx-text border-t border-wfx-text/10 dark:border-slate-800/50 py-10 transition-colors duration-150 ease-out text-center md:text-left mt-10">
-
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-4">
-
-          {/* COLUNA 1: MARCA & SOBRE */}
           <div className="md:col-span-4 space-y-4">
             <div className="flex items-center justify-center md:justify-start gap-2">
-              <Image
-                src="/logo.png"
-                alt="WFX Logo Footer"
-                width={80}
-                height={50}
-                className="object-contain"
-              />
+              <Image src="/logo.png" alt="WFX Logo Footer" width={80} height={50} className="object-contain" />
               <div className="w-1.5 h-1.5 bg-wfx-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
             </div>
             <p className="text-wfx-muted text-xs md:text-sm leading-relaxed max-w-sm mx-auto md:mx-0">
               Especialista em modelagem 3D técnica para alta joalheria. Garantindo precisão milimétrica para prototipagem e moldes de borracha.
             </p>
           </div>
-
-          {/* COLUNA 2: CONTATO */}
           <div className="md:col-span-3 space-y-4 md:pl-8">
             <h4 className="font-bold text-xs uppercase tracking-widest text-wfx-primary">Contato</h4>
             <ul className="space-y-3 text-sm text-wfx-muted">
@@ -657,95 +586,56 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               </li>
             </ul>
           </div>
-
-          {/* COLUNA 3: INSTITUCIONAL */}
           <div className="md:col-span-2 space-y-4">
             <h4 className="font-bold text-xs uppercase tracking-widest text-wfx-primary">Institucional</h4>
             <ul className="space-y-3 text-sm text-wfx-muted">
               <li>
                 <Link href="/termos" className="hover:text-wfx-primary transition-colors flex items-center justify-center md:justify-start gap-2 group">
-                  <span className="w-1 h-1 bg-wfx-muted rounded-full group-hover:bg-wfx-primary transition-colors"></span>
-                  Termos de Uso
+                  <span className="w-1 h-1 bg-wfx-muted rounded-full group-hover:bg-wfx-primary transition-colors"></span> Termos de Uso
                 </Link>
               </li>
               <li>
                 <Link href="/privacidade" className="hover:text-wfx-primary transition-colors flex items-center justify-center md:justify-start gap-2 group">
-                  <span className="w-1 h-1 bg-wfx-muted rounded-full group-hover:bg-wfx-primary transition-colors"></span>
-                  Política de Privacidade
+                  <span className="w-1 h-1 bg-wfx-muted rounded-full group-hover:bg-wfx-primary transition-colors"></span> Política de Privacidade
                 </Link>
               </li>
               <li>
                 <Link href="/atendimento" className="hover:text-wfx-primary transition-colors flex items-center justify-center md:justify-start gap-2 group">
-                  <span className="w-1 h-1 bg-wfx-muted rounded-full group-hover:bg-wfx-primary transition-colors"></span>
-                  Atendimento Exclusivo
+                  <span className="w-1 h-1 bg-wfx-muted rounded-full group-hover:bg-wfx-primary transition-colors"></span> Atendimento Exclusivo
                 </Link>
               </li>
             </ul>
           </div>
-
-          {/* COLUNA 4: DEV & SELO DE RESINA */}
           <div className="md:col-span-3 flex flex-col items-center md:items-end justify-start space-y-8">
-
-            {/* Bloco de Desenvolvimento */}
             <div className="flex flex-col items-center md:items-end">
               <span className="text-[10px] font-bold text-wfx-muted uppercase tracking-[0.2em] mb-3">Design & Development</span>
-              <a
-                href="https://instagram.com/yurikorolko"
-                target="_blank"
-                className="inline-flex items-center gap-3 bg-wfx-card border border-wfx-text/10 px-4 py-2 rounded-full shadow-sm transition-all duration-150 ease-out transform-gpu hover:shadow-md hover:border-wfx-primary/50 hover:-translate-y-1 active:scale-95 group"
-              >
+              <a href="https://instagram.com/yurikorolko" target="_blank" className="inline-flex items-center gap-3 bg-wfx-card border border-wfx-text/10 px-4 py-2 rounded-full shadow-sm transition-all duration-150 ease-out transform-gpu hover:shadow-md hover:border-wfx-primary/50 hover:-translate-y-1 active:scale-95 group">
                 <div className="p-1 rounded-full bg-wfx-text/5 group-hover:bg-wfx-primary/10 transition-colors duration-150">
                   <Code size={14} className="text-wfx-primary" />
                 </div>
                 <span className="font-bold text-xs tracking-tight transition-colors duration-150 group-hover:text-wfx-primary">@yurikorolko</span>
               </a>
             </div>
-
-            {/* --- NOVO TECH BADGE DE RESINA (AZUL) --- */}
             <div className="flex flex-col items-center md:items-end group cursor-default">
-              <span className="text-[9px] font-bold text-wfx-muted uppercase tracking-[0.1em] mb-2 text-center md:text-right">
-                Resina Utilizada para Testes:
-              </span>
-
+              <span className="text-[9px] font-bold text-wfx-muted uppercase tracking-[0.1em] mb-2 text-center md:text-right">Resina Utilizada para Testes:</span>
               <div className="flex items-center gap-3 bg-wfx-bg/50 backdrop-blur-sm border border-wfx-text/10 px-4 py-2.5 rounded-lg shadow-sm transition-all duration-300 hover:border-wfx-primary/40 hover:shadow-[0_0_15px_rgba(59,130,246,0.15)]">
-
-                {/* Ícone de Resina (Gota) com fundo sutil */}
                 <div className="p-1.5 rounded-md bg-wfx-primary/10 text-wfx-primary border border-wfx-primary/20 transition-colors duration-300 group-hover:bg-wfx-primary/20">
                   <Droplet size={18} strokeWidth={2.5} />
                 </div>
-
-                {/* Texto da Resina */}
                 <div className="flex flex-col text-left">
-                  <span className="text-[13px] font-black text-wfx-text tracking-wide leading-none transition-colors duration-300 group-hover:text-wfx-primary">
-                    WAX PRO 60
-                  </span>
-                  <span className="text-[8px] uppercase tracking-wider text-wfx-primary/80 font-bold mt-1 leading-none">
-                    Fundição Direta
-                  </span>
+                  <span className="text-[13px] font-black text-wfx-text tracking-wide leading-none transition-colors duration-300 group-hover:text-wfx-primary">WAX PRO 60</span>
+                  <span className="text-[8px] uppercase tracking-wider text-wfx-primary/80 font-bold mt-1 leading-none">Fundição Direta</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
-
-        {/* --- RODAPÉ INFERIOR --- */}
         <div className="max-w-7xl mx-auto px-6 mt-12 pt-6 border-t border-wfx-text/10 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-6 md:gap-4 text-[10px]">
-
-          {/* Lado Esquerdo: Dados Legais */}
           <div className="text-wfx-muted font-medium leading-relaxed text-center md:text-left">
-            <p className="font-black uppercase tracking-[0.2em] mb-1 text-wfx-muted opacity-60">
-              © 2026 WFX - Todos os direitos reservados.
-            </p>
-            <p className="opacity-70 dark:opacity-50 mt-1">
-              Gustavo Lamonatto Postal | CNPJ: 64.248.071/0001-90 <span className="hidden md:inline mx-1">•</span> <br className="md:hidden" />
-              Rua Rodrigues Alves, 162 - Bairro São José, Guaporé - RS
-            </p>
+            <p className="font-black uppercase tracking-[0.2em] mb-1 text-wfx-muted opacity-60">© 2026 WFX - Todos os direitos reservados.</p>
+            <p className="opacity-70 dark:opacity-50 mt-1">Gustavo Lamonatto Postal | CNPJ: 64.248.071/0001-90 <span className="hidden md:inline mx-1">•</span> <br className="md:hidden" />Rua Rodrigues Alves, 162 - Bairro São José, Guaporé - RS</p>
           </div>
-
-          {/* Lado Direito: Localização */}
-          <div className="font-black text-wfx-muted uppercase tracking-[0.3em] whitespace-nowrap opacity-60">
-            Brasil / Rio Grande do Sul
-          </div>
+          <div className="font-black text-wfx-muted uppercase tracking-[0.3em] whitespace-nowrap opacity-60">Brasil / Rio Grande do Sul</div>
         </div>
       </footer>
     </div>
