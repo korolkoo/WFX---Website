@@ -10,7 +10,7 @@ import Image from 'next/image';
 export default function ProfilePage() {
   const supabase = createClient();
   const router = useRouter();
-  
+
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [purchases, setPurchases] = useState<any[]>([]);
@@ -19,7 +19,7 @@ export default function ProfilePage() {
     async function loadProfileData() {
       // 1. Verifica se está logado
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       // CASO 1: Não conectado -> Manda para o Login
       if (!user) {
         router.push('/login');
@@ -32,7 +32,7 @@ export default function ProfilePage() {
         .select('role')
         .eq('id', user.id)
         .single();
-      
+
       // CASO 2: É Admin -> Manda direto para o Painel Admin
       if (profileData?.role === 'admin') {
         router.push('/admin');
@@ -44,10 +44,11 @@ export default function ProfilePage() {
 
       // Busca na tabela purchases (com os dados do produto juntos)
       const { data: purchasesData } = await supabase
-        .from('purchases') 
+        .from('purchases')
         .select(`
           id,
           created_at,
+          custom_file_url,
           products (
             id,
             title,
@@ -86,12 +87,12 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-wfx-bg text-wfx-text pb-20 font-sans">
-      
+
       {/* HEADER */}
       <header className="border-b border-wfx-border bg-wfx-bg/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-6 h-20 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-             <Image src="/logo.png" alt="WFX Logo" width={100} height={40} className="object-contain" />
+            <Image src="/logo.png" alt="WFX Logo" width={100} height={40} className="object-contain" />
           </Link>
           <div className="flex items-center gap-6">
             <Link href="/" className="text-sm font-bold text-wfx-muted hover:text-wfx-primary transition-colors hidden md:block">
@@ -105,7 +106,7 @@ export default function ProfilePage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-12">
-        
+
         {/* CABEÇALHO DO PERFIL */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 bg-wfx-card border border-wfx-border p-6 rounded-2xl shadow-xl">
           <div className="flex items-center gap-5">
@@ -138,7 +139,7 @@ export default function ProfilePage() {
                 </p>
               </div>
               <Link href="/" className="mt-6 px-8 py-3 bg-wfx-primary text-white font-bold rounded-lg hover:opacity-90 transition-all shadow-lg shadow-blue-500/20 active:scale-95 flex items-center gap-2">
-                <ArrowLeft size={16}/> Explorar Catálogo
+                <ArrowLeft size={16} /> Explorar Catálogo
               </Link>
             </div>
           ) : (
@@ -152,34 +153,60 @@ export default function ProfilePage() {
                     {/* Imagem do Produto */}
                     <div className="w-28 h-28 bg-slate-900 rounded-lg border border-slate-800 overflow-hidden shrink-0 relative flex items-center justify-center">
                       {product.image_url ? (
-                         <img src={product.image_url} alt={product.title} className="w-full h-full object-contain p-2 group-hover:scale-110 transition-transform duration-500" />
+                        <img src={product.image_url} alt={product.title} className="w-full h-full object-contain p-2 group-hover:scale-110 transition-transform duration-500" />
                       ) : (
-                         <Box size={32} className="text-slate-700" />
+                        <Box size={32} className="text-slate-700" />
                       )}
                     </div>
-                    
+
                     {/* Detalhes */}
                     <div className="flex-1 flex flex-col justify-between py-1">
                       <div>
-                        <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wider bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
-                          {product.category || 'Modelo 3D'}
-                        </span>
-                        <h3 className="font-bold text-wfx-text leading-tight line-clamp-2 mt-2">{product.title}</h3>
+                        {/* Título e Badges - Onde a mágica acontece */}
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wider bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
+                            {product.category || 'Modelo 3D'}
+                          </span>
+
+                          {/* BADGE PERSONALIZADO - Só aparece se o Gustavo enviou o arquivo exclusivo */}
+                          {purchase.custom_file_url && (
+                            <span className="text-[10px] font-black text-amber-500 uppercase tracking-wider bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 animate-pulse">
+                              ★ Personalizado
+                            </span>
+                          )}
+                        </div>
+
+                        <h3 className="font-bold text-wfx-text leading-tight line-clamp-2">
+                          {product.title}
+                        </h3>
+
                         <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5 font-medium">
                           <Clock size={12} /> Comprado em {new Date(purchase.created_at).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
 
                       {/* Botão de Download */}
-                      {product.file_url ? (
-                        <a 
-                          href={product.file_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
+                      {purchase.custom_file_url || product.file_url ? (
+                        <button
+                          onClick={async () => {
+                            // Prioriza o arquivo personalizado do Gustavo, se não existir, usa o padrão
+                            const fileToDownload = purchase.custom_file_url || product.file_url;
+
+                            // Gera um link temporário seguro para o download
+                            const path = fileToDownload.split('/models/')[1];
+                            const { data } = await supabase.storage
+                              .from('models')
+                              .createSignedUrl(decodeURIComponent(path), 60);
+
+                            if (data?.signedUrl) {
+                              window.open(data.signedUrl, '_blank');
+                            }
+                          }}
                           className="mt-4 inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white py-2.5 px-4 rounded-lg text-xs font-bold transition-all w-max shadow-md shadow-blue-600/20 active:scale-95"
                         >
-                          <Download size={14} /> BAIXAR ARQUIVO
-                        </a>
+                          <Download size={14} />
+                          {purchase.custom_file_url ? 'BAIXAR ARQUIVO STL' : 'BAIXAR ARQUIVO STL'}
+                        </button>
                       ) : (
                         <span className="mt-4 inline-flex items-center gap-2 text-slate-400 text-xs font-bold py-2.5 px-4 bg-slate-800/50 border border-slate-700 rounded-lg w-max cursor-not-allowed">
                           <Code size={14} /> ARQUIVO INDISPONÍVEL
