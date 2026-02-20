@@ -38,7 +38,7 @@ export const getEmailTemplate = (
         <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); border: 1px solid #e5e7eb;">
           
           <tr>
-            <td style="padding: 32px 40px; border-bottom: 1px solid #f3f4f6; text-align: center;">
+            <td style="padding: 56px 40px 24px 40px; border-bottom: 1px solid #f3f4f6; text-align: center;">
               <img 
                 src="https://wfxjoias.com/logo.png" 
                 alt="WFX STL" 
@@ -71,7 +71,7 @@ export const getEmailTemplate = (
           <tr>
             <td style="background-color: #0f172a; padding: 32px 40px; text-align: center;">
               <p style="margin: 0 0 8px 0; font-size: 14px; color: #f8fafc; font-weight: 600;">WFX Modelagem 3D</p>
-              <p style="margin: 0 0 16px 0; font-size: 13px; color: #94a3b8;">Transformando designs em realidade.</p>
+              <p style="margin: 0 0 16px 0; font-size: 13px; color: #94a3b8;">Obrigado pela confiança!</p>
               <p style="margin: 0; font-size: 11px; color: #475569; text-transform: uppercase; letter-spacing: 1px;">© 2026 WFX - Todos os direitos reservados.</p>
             </td>
           </tr>

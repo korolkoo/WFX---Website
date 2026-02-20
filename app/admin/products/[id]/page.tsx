@@ -5,8 +5,8 @@ import { createClient } from '@/utils/supabase/client';
 import { useRouter, useParams } from 'next/navigation';
 import { Save, Box, FileBox, Image as ImageIcon, Video, Gem, Scale, Info, Calculator, Ruler, Plus, Trash2, ArrowLeft, Film } from 'lucide-react';
 import Link from 'next/link';
-// Ajuste o import conforme sua estrutura
 import ModelConfigurator from '@/components/admin/ModelConfigurator';
+import { toast } from 'react-hot-toast';
 
 const DENSITIES = {
     brass: 8.5,
@@ -192,22 +192,63 @@ export default function EditProductPage() {
     // --- SALVAR EDIÇÃO ---
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // 1. Validações Prévias (Front-end)
+        if (!formData.title || formData.title.trim() === '') {
+            toast.error("O Título não pode ficar vazio.");
+            return;
+        }
+        if (!formData.price || isNaN(parseFloat(formData.price)) || parseFloat(formData.price) <= 0) {
+            toast.error("Insira um preço válido maior que zero.");
+            return;
+        }
+
         setSaving(true);
+        const toastId = toast.loading("Processando atualizações...");
+
+        // Variáveis para guardar as URLs antigas (para poder apagar depois)
+        const oldUrls = {
+            image: existingUrls.image,
+            stl: existingUrls.stl,
+            glb: existingUrls.glb,
+            video360: existingUrls.video360,
+            videoReal: existingUrls.videoReal
+        };
+
+        // Variáveis para as URLs que vão pro banco (novas ou mantidas)
+        let finalUrls = { ...oldUrls };
+        
+        // Array para rastrear arquivos novos em caso de erro (Rollback)
+        let newlyUploadedUrls: string[] = [];
 
         try {
-            let imageUrl: string | null = existingUrls.image;
-            let stlUrl: string | null = existingUrls.stl;
-            let glbUrl: string | null = existingUrls.glb;
-            let video360Url: string | null = existingUrls.video360;
-            let videoRealUrl: string | null = existingUrls.videoReal;
+            toast.loading("Enviando novos arquivos...", { id: toastId });
 
-            if (imageFile) imageUrl = await uploadFile('images', imageFile);
-            if (stlFile) stlUrl = await uploadFile('models', stlFile);
-            if (glbFile) glbUrl = await uploadFile('models', glbFile);
-            if (video360File) video360Url = await uploadFile('videos', video360File);
-            if (videoRealFile) videoRealUrl = await uploadFile('videos', videoRealFile);
+            // 2. Upload condicional apenas do que for novo
+            if (imageFile) {
+                finalUrls.image = await uploadFile('images', imageFile);
+                newlyUploadedUrls.push(finalUrls.image);
+            }
+            if (stlFile) {
+                finalUrls.stl = await uploadFile('models', stlFile);
+                newlyUploadedUrls.push(finalUrls.stl);
+            }
+            if (glbFile) {
+                finalUrls.glb = await uploadFile('models', glbFile);
+                newlyUploadedUrls.push(finalUrls.glb);
+            }
+            if (video360File) {
+                finalUrls.video360 = await uploadFile('videos', video360File);
+                newlyUploadedUrls.push(finalUrls.video360);
+            }
+            if (videoRealFile) {
+                finalUrls.videoReal = await uploadFile('videos', videoRealFile);
+                newlyUploadedUrls.push(finalUrls.videoReal);
+            }
 
-            // GERA O TEXTO A PARTIR DA LISTA
+            toast.loading("Salvando no banco de dados...", { id: toastId });
+
+            // 3. Formata as pedras
             const hasStoneData = stoneRows.some(r => r.qty || r.name || r.weight);
             let stonesSummary = null;
 
@@ -216,13 +257,13 @@ export default function EditProductPage() {
                     .filter(row => row.qty || row.name)
                     .map(row => {
                         const w = row.weight ? `${row.weight}g` : '0g';
-                        // IMPORTANTE: Manter esse formato exato para o parser funcionar depois
                         return `${row.qty || '?'} un. ${row.name || 'Pedra'} (Total: ${w})`;
                     })
                     .join(' + ');
             }
 
-            const updates: any = {
+            // 4. Salva (Update) no Banco
+            const updates = {
                 title: formData.title,
                 category: formData.category,
                 price: parseFloat(formData.price),
@@ -230,13 +271,13 @@ export default function EditProductPage() {
                 description: formData.description,
                 size: formData.size,
                 volume: formData.volume ? parseFloat(formData.volume) : null,
-                image_url: imageUrl,
-                file_url: stlUrl,
-                glb_url: glbUrl,
-                video_360_url: video360Url,
-                video_real_url: videoRealUrl,
+                image_url: finalUrls.image,
+                file_url: finalUrls.stl,
+                glb_url: finalUrls.glb,
+                video_360_url: finalUrls.video360,
+                video_real_url: finalUrls.videoReal,
                 material_config: materialConfig,
-                stones_info: stonesSummary // Salva apenas o texto!
+                stones_info: stonesSummary
             };
 
             const { error } = await supabase
@@ -244,14 +285,55 @@ export default function EditProductPage() {
                 .update(updates)
                 .eq('id', productId);
 
+            // Se der erro no banco, dispara pro catch!
             if (error) throw error;
 
-            alert("Produto atualizado com sucesso!");
+            // 5. LIMPEZA DE LIXO (Deu tudo certo! Apagar arquivos antigos que foram substituídos)
+            // Essa função roda em segundo plano e não impede a tela de terminar
+            const deleteOldFile = async (oldUrl: string | null, newUrl: string | null, bucket: string) => {
+                if (oldUrl && oldUrl !== newUrl) {
+                    const urlParts = oldUrl.split(`/public/${bucket}/`);
+                    if (urlParts.length === 2) {
+                        await supabase.storage.from(bucket).remove([decodeURIComponent(urlParts[1])]);
+                    }
+                }
+            };
+
+            // Apaga paralelamente os lixos antigos
+            Promise.all([
+                deleteOldFile(oldUrls.image, finalUrls.image, 'images'),
+                deleteOldFile(oldUrls.stl, finalUrls.stl, 'models'),
+                deleteOldFile(oldUrls.glb, finalUrls.glb, 'models'),
+                deleteOldFile(oldUrls.video360, finalUrls.video360, 'videos'),
+                deleteOldFile(oldUrls.videoReal, finalUrls.videoReal, 'videos')
+            ]).catch(err => console.error("Erro silencioso ao limpar lixo:", err));
+
+
+            toast.success("Produto atualizado com sucesso!", { id: toastId });
             router.push('/admin');
 
         } catch (error: any) {
             console.error(error);
-            alert("Erro ao atualizar: " + error.message);
+            
+            // ROLLBACK: Deu erro! Vamos apagar os arquivos NOVOS que acabamos de subir.
+            toast.loading("Erro encontrado. Revertendo uploads parciais...", { id: toastId });
+            
+            const deleteFailedUpload = async (url: string) => {
+                const bucket = url.includes('/public/images/') ? 'images' : 
+                               url.includes('/public/models/') ? 'models' : 'videos';
+                
+                const urlParts = url.split(`/public/${bucket}/`);
+                if (urlParts.length === 2) {
+                    await supabase.storage.from(bucket).remove([decodeURIComponent(urlParts[1])]);
+                }
+            };
+
+            // Apaga só o que estava na lista de novos envios
+            if (newlyUploadedUrls.length > 0) {
+                await Promise.all(newlyUploadedUrls.map(url => deleteFailedUpload(url)));
+            }
+
+            toast.error("Erro ao atualizar: " + error.message, { id: toastId, duration: 5000 });
         } finally {
             setSaving(false);
         }

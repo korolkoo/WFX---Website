@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Save, Box, FileBox, Image as ImageIcon, Video, Gem, Scale, Info, Calculator, Ruler, Plus, Trash2 } from 'lucide-react';
 import ModelConfigurator from '@/components/admin/ModelConfigurator';
+import { toast } from 'react-hot-toast';
 
 // --- DENSIDADES (Fatores de Multiplicação) ---
 const DENSITIES = {
@@ -111,22 +112,40 @@ export default function NewProductPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!imageFile || !stlFile || !glbFile) {
-      alert("Por favor, envie Imagem, STL e GLB.");
+    if (!formData.title || formData.title.trim() === '') {
+      toast.error("O Título não pode ficar vazio.");
       return;
     }
+    if (!imageFile || !stlFile || !glbFile) {
+      toast.error("Por favor, envie GLB, STL e Imagem.");
+      return;
+    }
+    if (!formData.price || isNaN(parseFloat(formData.price)) || parseFloat(formData.price) <= 0) {
+      toast.error("Insira um preço válido maior que zero.");
+      return;
+    }
+    if (!imageFile || !stlFile || !glbFile) {
+      toast.error("Por favor, envie GLB, STL e Imagem.");
+      return;
+    }
+    
     setLoading(true);
+    const toastId = toast.loading("Fazendo upload dos arquivos...");
+
+    // Variáveis criadas fora do try para o Rollback conseguir acessá-las se der erro
+    let imageUrl, stlUrl, glbUrl, video360Url, videoRealUrl;
 
     try {
-      // Uploads
-      const imageUrl = await uploadFile('images', imageFile);
-      const stlUrl = await uploadFile('models', stlFile);
-      const glbUrl = await uploadFile('models', glbFile);
+      // 1. Uploads (Agora com feedback na tela)
+      imageUrl = await uploadFile('images', imageFile);
+      stlUrl = await uploadFile('models', stlFile);
+      glbUrl = await uploadFile('models', glbFile);
       
-      let video360Url = null;
-      let videoRealUrl = null;
       if (video360File) video360Url = await uploadFile('videos', video360File);
       if (videoRealFile) videoRealUrl = await uploadFile('videos', videoRealFile);
+
+      // 2. Muda o aviso do Toast
+      toast.loading("Salvando informações no banco...", { id: toastId });
 
       // Monta string formatada (Texto Resumo)
       const stonesSummary = stoneRows
@@ -137,7 +156,7 @@ export default function NewProductPage() {
         })
         .join(' + ');
 
-      // Salva no Banco
+      // 3. Salva no Banco de Dados
       const { error } = await supabase.from('products').insert({
         title: formData.title,
         category: formData.category,
@@ -152,19 +171,42 @@ export default function NewProductPage() {
         video_360_url: video360Url,
         video_real_url: videoRealUrl,
         material_config: materialConfig,
-        
-        // --- AQUI ESTÁ A CORREÇÃO ---
-        stones_info: stonesSummary || 'Sem pedras' // Salva o texto legível
+        stones_info: stonesSummary || 'Sem pedras' 
       });
 
+      // Se der erro no banco, dispara pro catch (e faz o rollback)
       if (error) throw error;
 
-      alert("Produto cadastrado com sucesso!");
+      // 4. Sucesso!
+      toast.success("Produto cadastrado com sucesso!", { id: toastId });
       router.push('/admin');
 
     } catch (error: any) {
       console.error(error);
-      alert("Erro ao salvar: " + error.message);
+      toast.error("Erro ao salvar: " + error.message, { id: toastId });
+
+      // --- SISTEMA DE ROLLBACK (Evita vazamento de arquivos órfãos) ---
+      toast.loading("Limpando arquivos parciais...", { id: toastId });
+      
+      const deleteFile = async (url: string | undefined, bucket: string) => {
+        if (!url) return;
+        const urlParts = url.split(`/public/${bucket}/`);
+        if (urlParts.length === 2) {
+          await supabase.storage.from(bucket).remove([decodeURIComponent(urlParts[1])]);
+        }
+      };
+
+      // Tenta apagar tudo que já tinha conseguido subir
+      await Promise.all([
+        deleteFile(imageUrl, 'images'),
+        deleteFile(stlUrl, 'models'),
+        deleteFile(glbUrl, 'models'),
+        deleteFile(video360Url, 'videos'),
+        deleteFile(videoRealUrl, 'videos')
+      ]);
+
+      toast.error("Cadastro cancelado devido a um erro. Tente novamente.", { id: toastId });
+
     } finally {
       setLoading(false);
     }

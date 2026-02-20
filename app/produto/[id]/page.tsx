@@ -169,7 +169,7 @@ function ShareButton({ productTitle }: { productTitle: string }) {
 
   const handleShare = async () => {
     const shareData = {
-      title: `WFX.stl - ${productTitle}`,
+      title: `WFX - ${productTitle}`,
       text: `Confira este modelo 3D: ${productTitle}`,
       url: window.location.href,
     };
@@ -414,7 +414,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               <p className="font-bold text-sm text-wfx-primary mb-2">Não gostou de algo na peça? Tem alguma dúvida?</p>
               <p className="text-sm text-wfx-muted mb-4">Entre em contato comigo para ajustes personalizados antes da compra:</p>
               <div className="flex justify-center gap-6 text-sm font-bold text-wfx-text">
-                <a href="https://instagram.com/wfx.joias" target="_blank" className="hover:text-wfx-primary transition-colors flex items-center gap-2 px-4 py-2 bg-wfx-bg rounded border border-wfx-border/50"><Instagram size={16} /> @WFX</a>
+                <a href="https://instagram.com/wfx.joias" target="_blank" className="hover:text-wfx-primary transition-colors flex items-center gap-2 px-4 py-2 bg-wfx-bg rounded border border-wfx-border/50"><Instagram size={16} /> @wfx.joias</a>
                 <a href="https://wa.me/5554996704599" target="_blank" className="hover:text-wfx-primary transition-colors flex items-center gap-2 px-4 py-2 bg-wfx-bg rounded border border-wfx-border/50"><Phone size={16} /> +55 (54) 99670-4599</a>
               </div>
             </div>

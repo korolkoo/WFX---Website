@@ -83,7 +83,7 @@ export async function POST(req: Request) {
         const emailHtml = getEmailTemplate(customerName, orderId, orderItems);
 
         await resend.emails.send({
-          from: 'WFX STL <onboarding@resend.dev>',
+          from: 'WFX <envios@wfxjoias.com>',
           to: customerEmail,
           subject: `💎 Seu Pedido ${orderId} está pronto!`,
           html: emailHtml,

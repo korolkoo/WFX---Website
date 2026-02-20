@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import Link from 'next/link';
 import { Edit, Trash2, Plus, Search, Box, AlertCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface Product {
   id: number;
@@ -38,18 +39,91 @@ export default function AdminDashboard() {
     fetchProducts();
   }, []);
 
-  // Função de Deletar
-  const handleDelete = async (id: number) => {
-    if (!confirm('Tem certeza que deseja excluir este produto?')) return;
+  const executeDelete = async (id: number) => {
+    const toastId = toast.loading('Processando exclusão...');
 
-    const { error } = await supabase.from('products').delete().eq('id', id);
+    try {
+      // 1. Busca as URLs
+      const { data: product, error: fetchError } = await supabase
+        .from('products')
+        .select('image_url, file_url, glb_url, video_360_url, video_real_url')
+        .eq('id', id)
+        .single();
 
-    if (error) {
-      alert('Erro ao excluir: ' + error.message);
-    } else {
-      // Remove da lista visualmente
+      if (fetchError) throw new Error('Falha ao localizar os arquivos do produto.');
+
+      // 2. Tenta apagar no banco
+      const { error: deleteError } = await supabase.from('products').delete().eq('id', id);
+
+      if (deleteError) {
+        if (deleteError.code === '23503') {
+          throw new Error('Este produto já possui vendas atreladas e não pode ser excluído.');
+        }
+        throw new Error('Não foi possível excluir o produto no momento.');
+      }
+
+      // 3. Apaga os arquivos do Storage
+      const deleteFile = async (url: string | null | undefined, bucket: string) => {
+        if (!url) return;
+        const urlParts = url.split(`/public/${bucket}/`);
+        if (urlParts.length === 2) {
+          await supabase.storage.from(bucket).remove([decodeURIComponent(urlParts[1])]);
+        }
+      };
+
+      await Promise.all([
+        deleteFile(product.image_url, 'images'),
+        deleteFile(product.file_url, 'models'),
+        deleteFile(product.glb_url, 'models'),
+        deleteFile(product.video_360_url, 'videos'),
+        deleteFile(product.video_real_url, 'videos')
+      ]);
+
+      // 4. Remove da tela
       setProducts(products.filter(p => p.id !== id));
+      toast.success('Produto e arquivos excluídos!', { id: toastId });
+
+    } catch (error: any) {
+      toast.error(error.message, { id: toastId });
     }
+  };
+
+  // Função de Deletar
+  const handleDelete = (id: number) => {
+    toast((t) => (
+      <div className="flex flex-col gap-3">
+        <div>
+          <p className="font-bold text-white text-base mb-1">Confirmar Exclusão?</p>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Isso apagará o produto, imagens e o 3D do servidor <b>para sempre</b>.
+          </p>
+        </div>
+        <div className="flex justify-end gap-2 mt-2">
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded text-xs font-bold transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => {
+              toast.dismiss(t.id); // Fecha o aviso
+              executeDelete(id);   // Roda a exclusão
+            }}
+            className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded text-xs font-bold transition-colors shadow-lg shadow-red-900/20"
+          >
+            Sim, Excluir
+          </button>
+        </div>
+      </div>
+    ), {
+      duration: Infinity, // Faz o aviso ficar na tela até ele clicar em algo
+      style: {
+        background: '#0f172a',
+        border: '1px solid #334155',
+        minWidth: '300px',
+      }
+    });
   };
 
   const filteredProducts = products.filter(p =>
