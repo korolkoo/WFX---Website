@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
-import { Package, LogOut, Download, Clock, User as UserIcon, Code, ArrowLeft, Box } from 'lucide-react';
+import { Package, LogOut, Download, Clock, User as UserIcon, Code, ArrowLeft, Box, Archive } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -42,7 +42,7 @@ export default function ProfilePage() {
       // CASO 3: É Cliente -> Carrega o Histórico
       setUser(user);
 
-      // Busca na tabela purchases (com os dados do produto juntos)
+      // --- ALTERAÇÃO AQUI: Adicionado o zip_url na consulta ---
       const { data: purchasesData } = await supabase
         .from('purchases')
         .select(`
@@ -54,6 +54,7 @@ export default function ProfilePage() {
             title,
             image_url,
             file_url,
+            zip_url, 
             category
           )
         `)
@@ -135,7 +136,7 @@ export default function ProfilePage() {
               <div>
                 <p className="text-lg font-bold text-wfx-text mb-2">Nenhum arquivo na sua biblioteca ainda.</p>
                 <p className="text-sm text-wfx-muted max-w-md mx-auto leading-relaxed">
-                  Seus arquivos 3D (STL) parecerão aqui automaticamente após a confirmação do pagamento.
+                  Seus arquivos 3D (STL ou ZIP) parecerão aqui automaticamente após a confirmação do pagamento.
                 </p>
               </div>
               <Link href="/" className="mt-6 px-8 py-3 bg-wfx-primary text-white font-bold rounded-lg hover:opacity-90 transition-all shadow-lg shadow-blue-500/20 active:scale-95 flex items-center gap-2">
@@ -147,6 +148,12 @@ export default function ProfilePage() {
               {purchases.map((purchase) => {
                 const product = purchase.products;
                 if (!product) return null;
+
+                const fileToDownload = purchase.custom_file_url || product.zip_url || product.file_url;
+
+                const isZip = fileToDownload && (fileToDownload.includes('.zip') || fileToDownload.includes('.rar'));
+                const buttonText = purchase.custom_file_url ? 'BAIXAR ARQUIVO EXCLUSIVO' : (isZip ? 'BAIXAR PACOTE (ZIP)' : 'BAIXAR ARQUIVO STL');
+                const ButtonIcon = isZip ? Archive : Download;
 
                 return (
                   <div key={purchase.id} className="bg-wfx-card border border-wfx-border rounded-xl p-5 flex gap-5 hover:border-wfx-primary/50 transition-colors shadow-sm group">
@@ -162,13 +169,13 @@ export default function ProfilePage() {
                     {/* Detalhes */}
                     <div className="flex-1 flex flex-col justify-between py-1">
                       <div>
-                        {/* Título e Badges - Onde a mágica acontece */}
+                        {/* Título e Badges */}
                         <div className="flex flex-wrap items-center gap-2 mb-2">
                           <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wider bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
                             {product.category || 'Modelo 3D'}
                           </span>
 
-                          {/* BADGE PERSONALIZADO - Só aparece se o Gustavo enviou o arquivo exclusivo */}
+                          {/* BADGE PERSONALIZADO */}
                           {purchase.custom_file_url && (
                             <span className="text-[10px] font-black text-amber-500 uppercase tracking-wider bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 animate-pulse">
                               ★ Personalizado
@@ -186,26 +193,48 @@ export default function ProfilePage() {
                       </div>
 
                       {/* Botão de Download */}
-                      {purchase.custom_file_url || product.file_url ? (
+                      {fileToDownload ? (
                         <button
                           onClick={async () => {
-                            // Prioriza o arquivo personalizado do Gustavo, se não existir, usa o padrão
-                            const fileToDownload = purchase.custom_file_url || product.file_url;
 
-                            // Gera um link temporário seguro para o download
-                            const path = fileToDownload.split('/models/')[1];
-                            const { data } = await supabase.storage
-                              .from('models')
-                              .createSignedUrl(decodeURIComponent(path), 60);
+                            if (!fileToDownload.includes('/models/')) {
+                              window.open(fileToDownload, '_blank');
+                              return;
+                            }
 
-                            if (data?.signedUrl) {
-                              window.open(data.signedUrl, '_blank');
+                            try {
+                              const path = fileToDownload.split('/models/')[1];
+                              const extension = fileToDownload.split('.').pop() || 'stl';
+                              const isCustom = purchase.custom_file_url ? '_Exclusivo' : '';
+                              const cleanFileName = `WFX_${product.title.replace(/[^a-zA-Z0-9]/g, '_')}${isCustom}.${extension}`;
+
+                              const { data } = await supabase.storage
+                                .from('models')
+                                .createSignedUrl(decodeURIComponent(path), 60, {
+                                  download: cleanFileName
+                                });
+
+                              if (data?.signedUrl) {
+                                const link = document.createElement('a');
+                                link.href = data.signedUrl;
+                                link.download = cleanFileName;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                              } else {
+                                alert("Erro ao gerar link de download. Tente novamente.");
+                              }
+                            } catch (e) {
+                              alert("Erro ao acessar o arquivo. Contate o suporte.");
                             }
                           }}
-                          className="mt-4 inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white py-2.5 px-4 rounded-lg text-xs font-bold transition-all w-max shadow-md shadow-blue-600/20 active:scale-95"
+                          className={`mt-4 inline-flex items-center justify-center gap-2 text-white py-2.5 px-4 rounded-lg text-[10px] font-bold transition-all w-max shadow-md active:scale-95 ${isZip
+                              ? 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20'
+                              : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/20'
+                            }`}
                         >
-                          <Download size={14} />
-                          {purchase.custom_file_url ? 'BAIXAR ARQUIVO STL' : 'BAIXAR ARQUIVO STL'}
+                          <ButtonIcon size={14} />
+                          {buttonText}
                         </button>
                       ) : (
                         <span className="mt-4 inline-flex items-center gap-2 text-slate-400 text-xs font-bold py-2.5 px-4 bg-slate-800/50 border border-slate-700 rounded-lg w-max cursor-not-allowed">

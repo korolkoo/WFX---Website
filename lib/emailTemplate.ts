@@ -13,7 +13,7 @@ export const getEmailTemplate = (
       <td style="padding: 16px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">
         ${item.downloadUrl ? `
           <a href="${item.downloadUrl}" style="background-color: #2563EB; color: #ffffff; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: bold; display: inline-block;">
-            ⬇ BAIXAR
+            ⬇ BAIXAR ARQUIVO
           </a>
         ` : `
           <span style="color: #ef4444; font-size: 12px;">Link indisponível</span>
@@ -41,7 +41,7 @@ export const getEmailTemplate = (
             <td style="padding: 56px 40px 24px 40px; border-bottom: 1px solid #f3f4f6; text-align: center;">
               <img 
                 src="https://wfxjoias.com/logo.png" 
-                alt="WFX STL" 
+                alt="WFX" 
                 style="width: 140px; height: auto; display: block; margin: 0 auto;"
               />
             </td>
@@ -51,7 +51,7 @@ export const getEmailTemplate = (
             <td style="padding: 40px;">
               <h1 style="margin: 0 0 16px 0; font-size: 26px; font-weight: bold; color: #111827; text-align: center;">Pagamento Confirmado! 🎉</h1>
               <p style="margin: 0 0 32px 0; font-size: 16px; line-height: 24px; color: #4b5563; text-align: center;">
-                Olá, <strong>${customerName}</strong>. Seu pedido <strong style="color: #2563EB;">${orderId}</strong> foi processado com sucesso. Seus arquivos STL já estão disponíveis:
+                Olá, <strong>${customerName}</strong>. Seu pedido <strong style="color: #2563EB;">${orderId}</strong> foi processado com sucesso. Seus arquivos já estão disponíveis:
               </p>
 
               <div style="background-color: #f8fafc; border-radius: 12px; padding: 24px; border: 1px solid #e2e8f0;">
@@ -70,7 +70,7 @@ export const getEmailTemplate = (
 
           <tr>
             <td style="background-color: #0f172a; padding: 32px 40px; text-align: center;">
-              <p style="margin: 0 0 8px 0; font-size: 14px; color: #f8fafc; font-weight: 600;">WFX Modelagem 3D</p>
+              <p style="margin: 0 0 8px 0; font-size: 14px; color: #f8fafc; font-weight: 600;">WFX</p>
               <p style="margin: 0 0 16px 0; font-size: 13px; color: #94a3b8;">Obrigado pela confiança!</p>
               <p style="margin: 0; font-size: 11px; color: #475569; text-transform: uppercase; letter-spacing: 1px;">© 2026 WFX - Todos os direitos reservados.</p>
             </td>

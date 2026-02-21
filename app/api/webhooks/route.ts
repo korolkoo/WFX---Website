@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import Stripe from "stripe";
 import { Resend } from "resend";
 import { getEmailTemplate } from "@/lib/emailTemplate"; 
-import { createClient } from "@supabase/supabase-js"; // IMPORTANTE: Importando o Supabase
+import { createClient } from "@supabase/supabase-js"; 
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-12-15.clover" as any,
@@ -12,7 +12,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 const resend = new Resend(process.env.RESEND_API_KEY);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
-// CRIA O CLIENTE ADMIN (Usando a Service Role que colocamos no .env)
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY! 
@@ -38,8 +37,6 @@ export async function POST(req: Request) {
     
     const customerEmail = session.customer_details?.email;
     const customerName = session.customer_details?.name || "Cliente";
-    
-    // PUXA O ID DO USUÁRIO QUE SALVAMOS LÁ NO CHECKOUT
     const userId = session.metadata?.userId; 
     
     if (customerEmail) {
@@ -48,9 +45,36 @@ export async function POST(req: Request) {
           expand: ['data.price.product'], 
         });
         
-        const orderItems = lineItems.data.map((item: any) => ({
-          title: item.description || "Produto Digital",
-          downloadUrl: item.price.product.metadata.file_url || null
+        // ==============================================
+        // MÁGICA: GERANDO LINKS COM NOMES LIMPOS
+        // ==============================================
+        const orderItems = await Promise.all(lineItems.data.map(async (item: any) => {
+            const productTitle = item.description || "Produto Digital";
+            let rawUrl = item.price.product.metadata.file_url;
+            let downloadUrl = null;
+
+            if (rawUrl) {
+                if (rawUrl.includes('/models/')) {
+                    const path = rawUrl.split('/models/')[1];
+                    const extension = rawUrl.split('.').pop() || 'stl';
+                    const cleanFileName = `WFX_${productTitle.replace(/[^a-zA-Z0-9]/g, '_')}.${extension}`;
+
+                    const { data } = await supabaseAdmin.storage
+                        .from('models')
+                        .createSignedUrl(decodeURIComponent(path), 60 * 60 * 24 * 7, {
+                            download: cleanFileName 
+                        });
+                    downloadUrl = data?.signedUrl || null;
+                } else {
+                    // É um link do Google Drive/Mega? Manda direto!
+                    downloadUrl = rawUrl;
+                }
+            }
+
+            return {
+                title: productTitle,
+                downloadUrl: downloadUrl
+            };
         }));
 
         // ==============================================
@@ -64,7 +88,7 @@ export async function POST(req: Request) {
               product_id: dbId ? parseInt(dbId) : null,
               stripe_session_id: session.id
             };
-          }).filter((p: any) => p.product_id !== null); // Garante que tem ID válido
+          }).filter((p: any) => p.product_id !== null);
 
           if (purchasesToInsert.length > 0) {
             const { error: dbError } = await supabaseAdmin.from('purchases').insert(purchasesToInsert);
