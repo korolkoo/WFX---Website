@@ -57,6 +57,7 @@ export async function POST(req: Request) {
                 });
 
             if (fileError) throw fileError;
+            
             finalDownloadUrl = fileData.signedUrl;
         }
 
@@ -65,7 +66,7 @@ export async function POST(req: Request) {
         
         const orderItems = [{
             title: finalTitle,
-            downloadUrl: finalDownloadUrl
+            downloadUrl: finalDownloadUrl 
         }];
 
         const emailHtml = getEmailTemplate('Cliente VIP', orderId, orderItems);

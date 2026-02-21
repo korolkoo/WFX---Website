@@ -46,29 +46,28 @@ export async function POST(req: Request) {
         });
         
         // ==============================================
-        // MÁGICA: GERANDO LINKS COM NOMES LIMPOS
+        // MÁGICA: GERANDO LINKS (SUPABASE OU DRIVE)
         // ==============================================
         const orderItems = await Promise.all(lineItems.data.map(async (item: any) => {
             const productTitle = item.description || "Produto Digital";
-            let rawUrl = item.price.product.metadata.file_url;
-            let downloadUrl = null;
+            // Tenta pegar o link do file_url ou zip_url nos metadados do Stripe
+            const rawUrl = item.price.product.metadata.file_url || item.price.product.metadata.zip_url;
+            
+            let downloadUrl = rawUrl; // Começa assumindo que é o link direto (Drive/Mega)
 
-            if (rawUrl) {
-                if (rawUrl.includes('/models/')) {
-                    const path = rawUrl.split('/models/')[1];
-                    const extension = rawUrl.split('.').pop() || 'stl';
-                    const cleanFileName = `WFX_${productTitle.replace(/[^a-zA-Z0-9]/g, '_')}.${extension}`;
+            if (rawUrl && rawUrl.includes('/models/')) {
+                // Se for arquivo do Supabase, gera o link assinado com nome limpo
+                const path = rawUrl.split('/models/')[1];
+                const extension = rawUrl.split('.').pop() || 'stl';
+                const cleanFileName = `WFX_${productTitle.replace(/[^a-zA-Z0-9]/g, '_')}.${extension}`;
 
-                    const { data } = await supabaseAdmin.storage
-                        .from('models')
-                        .createSignedUrl(decodeURIComponent(path), 60 * 60 * 24 * 7, {
-                            download: cleanFileName 
-                        });
-                    downloadUrl = data?.signedUrl || null;
-                } else {
-                    // É um link do Google Drive/Mega? Manda direto!
-                    downloadUrl = rawUrl;
-                }
+                const { data } = await supabaseAdmin.storage
+                    .from('models')
+                    .createSignedUrl(decodeURIComponent(path), 60 * 60 * 24 * 7, {
+                        download: cleanFileName 
+                    });
+                
+                downloadUrl = data?.signedUrl || null;
             }
 
             return {
@@ -94,8 +93,6 @@ export async function POST(req: Request) {
             const { error: dbError } = await supabaseAdmin.from('purchases').insert(purchasesToInsert);
             if (dbError) {
                 console.error("❌ Erro ao salvar no Supabase:", dbError);
-            } else {
-                console.log("✅ Compra salva no Supabase com sucesso!");
             }
           }
         }

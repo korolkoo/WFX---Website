@@ -151,9 +151,16 @@ export default function ProfilePage() {
 
                 const fileToDownload = purchase.custom_file_url || product.zip_url || product.file_url;
 
-                const isZip = fileToDownload && (fileToDownload.includes('.zip') || fileToDownload.includes('.rar'));
-                const buttonText = purchase.custom_file_url ? 'BAIXAR ARQUIVO EXCLUSIVO' : (isZip ? 'BAIXAR PACOTE (ZIP)' : 'BAIXAR ARQUIVO STL');
-                const ButtonIcon = isZip ? Archive : Download;
+                const isExternal = fileToDownload && !fileToDownload.includes('/models/');
+
+                const isPackage = !!product.zip_url || (fileToDownload && (fileToDownload.includes('.zip') || fileToDownload.includes('.rar')));
+
+                // 4. Define visual do botão
+                const buttonText = purchase.custom_file_url
+                  ? 'BAIXAR ARQUIVO EXCLUSIVO'
+                  : (isPackage ? 'BAIXAR PACOTE COMPLETO' : 'BAIXAR ARQUIVO STL');
+
+                const ButtonIcon = isPackage ? Archive : Download;
 
                 return (
                   <div key={purchase.id} className="bg-wfx-card border border-wfx-border rounded-xl p-5 flex gap-5 hover:border-wfx-primary/50 transition-colors shadow-sm group">
@@ -169,13 +176,11 @@ export default function ProfilePage() {
                     {/* Detalhes */}
                     <div className="flex-1 flex flex-col justify-between py-1">
                       <div>
-                        {/* Título e Badges */}
                         <div className="flex flex-wrap items-center gap-2 mb-2">
                           <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wider bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
                             {product.category || 'Modelo 3D'}
                           </span>
 
-                          {/* BADGE PERSONALIZADO */}
                           {purchase.custom_file_url && (
                             <span className="text-[10px] font-black text-amber-500 uppercase tracking-wider bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 animate-pulse">
                               ★ Personalizado
@@ -196,16 +201,16 @@ export default function ProfilePage() {
                       {fileToDownload ? (
                         <button
                           onClick={async () => {
-
-                            if (!fileToDownload.includes('/models/')) {
+                            if (isExternal) {
                               window.open(fileToDownload, '_blank');
                               return;
                             }
 
                             try {
                               const path = fileToDownload.split('/models/')[1];
-                              const extension = fileToDownload.split('.').pop() || 'stl';
+                              const extension = fileToDownload.split('.').pop()?.split('?')[0] || 'stl';
                               const isCustom = purchase.custom_file_url ? '_Exclusivo' : '';
+
                               const cleanFileName = `WFX_${product.title.replace(/[^a-zA-Z0-9]/g, '_')}${isCustom}.${extension}`;
 
                               const { data } = await supabase.storage
@@ -225,10 +230,11 @@ export default function ProfilePage() {
                                 alert("Erro ao gerar link de download. Tente novamente.");
                               }
                             } catch (e) {
+                              console.error(e);
                               alert("Erro ao acessar o arquivo. Contate o suporte.");
                             }
                           }}
-                          className={`mt-4 inline-flex items-center justify-center gap-2 text-white py-2.5 px-4 rounded-lg text-[10px] font-bold transition-all w-max shadow-md active:scale-95 ${isZip
+                          className={`mt-4 inline-flex items-center justify-center gap-2 text-white py-2.5 px-4 rounded-lg text-[10px] font-bold transition-all w-max shadow-md active:scale-95 ${isPackage
                               ? 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20'
                               : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/20'
                             }`}
