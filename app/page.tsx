@@ -85,7 +85,7 @@ function HomeContent() {
     if (featuredProducts.length <= 1) return;
     const interval = setInterval(() => {
       setFeaturedIndex((prev) => (prev + 1) % featuredProducts.length);
-    }, 8000); 
+    }, 13500);
     return () => clearInterval(interval);
   }, [featuredProducts]);
 
@@ -236,7 +236,7 @@ function HomeContent() {
       <main>
         {/* --- BANNER HERO 3D (Lado Esquerdo Intacto) --- */}
         <section className="border-b border-wfx-border bg-wfx-card/50 flex items-center py-12 md:py-0 min-h-[calc(100vh-80px)] overflow-hidden">
-          
+
           <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center w-full h-full">
 
             {/* Lado Esquerdo Original */}
@@ -253,62 +253,62 @@ function HomeContent() {
               </a>
             </div>
 
-            {/* Lado Direito: Layout Flex com Margens Seguras (sem cortes) */}
-            <div className="relative w-full flex flex-col items-center justify-center py-8 order-1 md:order-2 z-10 min-h-[500px]">
-                
-                {/* Texto Superior com Lançamento em Destaque */}
-                {featuredProducts.length > 0 && (
-                  <div className="text-center z-20 animate-in fade-in slide-in-from-top-4 duration-700 pointer-events-none drop-shadow-md shrink-0 mb-6 flex flex-col items-center">
-                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-wfx-primary mb-1">
-                      LANÇAMENTO
-                    </span>
-                    <span className="text-[8px] font-bold uppercase tracking-[0.15em] text-wfx-muted mb-1.5">
-                      {featuredProducts[featuredIndex].category}
-                    </span>
-                    <h2 className="text-lg md:text-xl font-bold text-wfx-text/90 leading-tight">
-                      {featuredProducts[featuredIndex].title}
-                    </h2>
-                  </div>
-                )}
+            {/* Lado Direito: Layout Flex com Margens Seguras */}
+            <div className="relative w-full flex flex-col items-center justify-center py-8 order-1 md:order-2 z-10 min-h-[500px] md:min-h-[600px]">
 
-                {/* Container do 3D fixo para não invadir as letras */}
-                <div className="relative w-full h-[400px] md:h-[500px] lg:h-[550px] shrink-0">
-                  <div className="absolute inset-0 bg-wfx-primary/5 blur-[120px] rounded-full pointer-events-none"></div>
-                  
-                  {featuredProducts.length > 0 && featuredProducts[featuredIndex].glb_url ? (
-                    <Hero3D 
-                      key={featuredProducts[featuredIndex].id} 
-                      glbUrl={featuredProducts[featuredIndex].glb_url} 
-                      materialConfig={featuredProducts[featuredIndex].material_config} 
-                    />
-                  ) : (
-                    <Hero3D />
-                  )}
+              {/* TEXTO SUPERIOR: Fixado no topo absoluto */}
+              {featuredProducts.length > 0 && (
+                <div className="absolute top-0 left-0 right-0 text-center z-20 animate-in fade-in slide-in-from-top-4 duration-700 pointer-events-none drop-shadow-md flex flex-col items-center">
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-wfx-primary mb-1">
+                    LANÇAMENTOS
+                  </span>
+                  <span className="text-[8px] font-bold uppercase tracking-[0.15em] text-wfx-muted mb-1.5">
+                    {featuredProducts[featuredIndex].category}
+                  </span>
+                  <h2 className="text-lg md:text-xl font-bold text-wfx-text/90 leading-tight">
+                    {featuredProducts[featuredIndex].title}
+                  </h2>
                 </div>
+              )}
 
-                {/* Texto Inferior sem Preço e com Carrossel Azul Sólido */}
-                {featuredProducts.length > 0 && (
-                  <div className="text-center z-20 animate-in fade-in slide-in-from-bottom-4 duration-700 shrink-0 mt-4">
-                      <Link href={`/produto/${featuredProducts[featuredIndex].id}`} className="text-[10px] font-bold uppercase tracking-[0.1em] text-wfx-muted hover:text-wfx-primary transition-colors block mb-4">
-                        Ver Detalhes &rarr;
-                      </Link>
+              {/* CONTAINER DO 3D */}
+              <div className="relative w-full h-[350px] md:h-[450px] lg:h-[500px] shrink-0 flex items-center justify-center my-auto">
+                <div className="absolute inset-0 bg-wfx-primary/5 blur-[120px] rounded-full pointer-events-none"></div>
 
-                      <div className="flex justify-center gap-2">
-                        {featuredProducts.map((_, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => setFeaturedIndex(idx)}
-                            className={`h-1.5 rounded-full transition-all duration-300 ${
-                              featuredIndex === idx 
-                                ? 'w-6 bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]' // Azul vivo com leve brilho
-                                : 'w-1.5 bg-wfx-border hover:bg-wfx-muted'
-                            }`}
-                            aria-label={`Ver lançamento ${idx + 1}`}
-                          />
-                        ))}
-                      </div>
-                  </div>
+                {featuredProducts.length > 0 && featuredProducts[featuredIndex].glb_url ? (
+                  <Hero3D
+                    key={featuredProducts[featuredIndex].id}
+                    glbUrl={featuredProducts[featuredIndex].glb_url}
+                    materialConfig={featuredProducts[featuredIndex].material_config}
+                    category={featuredProducts[featuredIndex].category}
+                  />
+                ) : (
+                  <Hero3D />
                 )}
+              </div>
+
+              {/* TEXTO INFERIOR: Fixado no fundo absoluto */}
+              {featuredProducts.length > 0 && (
+                <div className="absolute bottom-0 left-0 right-0 text-center z-20 animate-in fade-in slide-in-from-bottom-4 duration-700 mt-auto">
+                  <Link href={`/produto/${featuredProducts[featuredIndex].id}`} className="text-[10px] font-bold uppercase tracking-[0.1em] text-wfx-muted hover:text-wfx-primary transition-colors block mb-4">
+                    Ver Detalhes &rarr;
+                  </Link>
+
+                  <div className="flex justify-center gap-2">
+                    {featuredProducts.map((_, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setFeaturedIndex(idx)}
+                        className={`h-1.5 rounded-full transition-all duration-300 ${featuredIndex === idx
+                          ? 'w-6 bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]'
+                          : 'w-1.5 bg-wfx-border hover:bg-wfx-muted'
+                          }`}
+                        aria-label={`Ver lançamento ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
           </div>
@@ -428,7 +428,7 @@ function HomeContent() {
 
       {/* FOOTER */}
       <footer id="sobre" className="relative bg-wfx-bg text-wfx-text border-t border-wfx-text/10 dark:border-slate-800/50 py-10 transition-colors duration-150 ease-out text-center md:text-left mt-10">
-        
+
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-4">
 
           {/* COLUNA 1: MARCA & SOBRE */}
@@ -494,7 +494,7 @@ function HomeContent() {
 
           {/* COLUNA 4: DEV & SELO DE RESINA */}
           <div className="md:col-span-3 flex flex-col items-center md:items-end justify-start space-y-8">
-            
+
             {/* Bloco de Desenvolvimento */}
             <div className="flex flex-col items-center md:items-end">
               <span className="text-[10px] font-bold text-wfx-muted uppercase tracking-[0.2em] mb-3">Design & Development</span>
@@ -515,14 +515,14 @@ function HomeContent() {
               <span className="text-[9px] font-bold text-wfx-muted uppercase tracking-[0.1em] mb-2 text-center md:text-right">
                 Resina Utilizada para Testes:
               </span>
-              
+
               <div className="flex items-center gap-3 bg-wfx-bg/50 backdrop-blur-sm border border-wfx-text/10 px-4 py-2.5 rounded-lg shadow-sm transition-all duration-300 hover:border-wfx-primary/40 hover:shadow-[0_0_15px_rgba(59,130,246,0.15)]">
-                
+
                 {/* Ícone de Resina (Gota) com fundo sutil */}
                 <div className="p-1.5 rounded-md bg-wfx-primary/10 text-wfx-primary border border-wfx-primary/20 transition-colors duration-300 group-hover:bg-wfx-primary/20">
                   <Droplet size={18} strokeWidth={2.5} />
                 </div>
-                
+
                 {/* Texto da Resina */}
                 <div className="flex flex-col text-left">
                   <span className="text-[13px] font-black text-wfx-text tracking-wide leading-none transition-colors duration-300 group-hover:text-wfx-primary">
