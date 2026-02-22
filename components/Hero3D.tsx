@@ -1,8 +1,9 @@
 "use client";
 
 import { Canvas, useFrame } from "@react-three/fiber";
-import { PresentationControls, Environment, useGLTF, Html, Stage } from "@react-three/drei";
-import { useRef, Suspense, useMemo } from "react";
+// Removemos o Stage, Center e Bounds. Vamos fazer via Matemática!
+import { PresentationControls, Environment, useGLTF, Html } from "@react-three/drei";
+import { useRef, Suspense, useMemo, memo } from "react";
 import * as THREE from "three";
 
 interface Hero3DProps {
@@ -58,6 +59,29 @@ function LoadedJewelry({ url, materialConfig }: { url: string, materialConfig: a
       }
     });
 
+    // ==========================================
+    // MÁGICA: NORMALIZAÇÃO MATEMÁTICA
+    // ==========================================
+    clonedScene.scale.set(1, 1, 1);
+    clonedScene.position.set(0, 0, 0);
+
+    const box = new THREE.Box3().setFromObject(clonedScene);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+
+    const TARGET_SIZE = 20; 
+    const maxDim = Math.max(size.x, size.y, size.z);
+    
+    if (maxDim > 0) {
+        const scale = TARGET_SIZE / maxDim;
+        clonedScene.scale.setScalar(scale);
+        clonedScene.position.x = -center.x * scale;
+        clonedScene.position.y = -center.y * scale;
+        clonedScene.position.z = -center.z * scale;
+    }
+
     return clonedScene;
   }, [originalScene, materialConfig]);
 
@@ -76,44 +100,39 @@ function FallbackJewelry() {
   return (
     <Html center>
       <div className="flex flex-col items-center justify-center pointer-events-none">
-        <div className="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
+        <div className="w-10 h-10 border-4 border-wfx-border border-t-wfx-primary rounded-full animate-spin"></div>
       </div>
     </Html>
   );
 }
 
-export default function Hero3D({ glbUrl, materialConfig, category }: Hero3DProps) {
-
+function Hero3D({ glbUrl, materialConfig, category }: Hero3DProps) {
   const isRing = category?.toLowerCase().includes("ané");
   const initialRotation = isRing ? [0.6, 0.8, 0] : [0.3, -0.4, 0];
 
   return (
     <div className="w-full h-full cursor-grab active:cursor-grabbing">
-      <Canvas dpr={[1, 2]} gl={{ powerPreference: "high-performance", antialias: true }} shadows camera={{ fov: 35 }}>
+      <Canvas dpr={[1, 2]} gl={{ powerPreference: "high-performance", antialias: true }} shadows camera={{ position: [0, 0, 40], fov: 35 }}>
 
         <Environment preset="city" blur={0.8} />
+        <ambientLight intensity={0.6} />
+        <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} castShadow color="#ffffff" />
+        <pointLight position={[-10, -10, -10]} intensity={1} color="#ffffff" />
 
         <Suspense fallback={<FallbackJewelry />}>
           <PresentationControls
             global
-            snap={true}
+            snap={false}
             rotation={initialRotation as [number, number, number]}
             polar={[-Math.PI / 3, Math.PI / 3]}
             azimuth={[-Math.PI / 1.4, Math.PI / 1.4]}
           >
             <group position={[0, 0.3, 0]}>
-              <Stage
-                adjustCamera={1.25} 
-                intensity={0.5}
-                environment={null}
-                shadows={false}
-              >
-                {glbUrl ? (
-                  <LoadedJewelry url={glbUrl} materialConfig={materialConfig} />
-                ) : (
-                  <FallbackJewelry />
-                )}
-              </Stage>
+              {glbUrl ? (
+                <LoadedJewelry url={glbUrl} materialConfig={materialConfig} />
+              ) : (
+                <FallbackJewelry />
+              )}
             </group>
           </PresentationControls>
         </Suspense>
@@ -121,3 +140,5 @@ export default function Hero3D({ glbUrl, materialConfig, category }: Hero3DProps
     </div>
   );
 }
+
+export default memo(Hero3D);
