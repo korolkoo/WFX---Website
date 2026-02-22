@@ -7,7 +7,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST(request: Request) {
   try {
-    // AGORA RECEBE O userId TAMBÉM
     const { items, userId } = await request.json();
 
     if (!items || items.length === 0) {
@@ -21,14 +20,14 @@ export async function POST(request: Request) {
           name: item.title,
           images: item.image_url ? [item.image_url] : [],
           metadata: {
-             file_url: item.file_url || "",
-             // SALVA O ID DO PRODUTO AQUI
-             db_id: item.id.toString() 
-          }
+            db_id: item.id.toString(),
+            file_url: item.file_url || '',
+            zip_url: item.zip_url || ''
+          },
         },
         unit_amount: Math.round(item.price * 100), 
       },
-      quantity: item.quantity,
+      quantity: 1,
     }));
 
     const session = await stripe.checkout.sessions.create({
@@ -36,7 +35,6 @@ export async function POST(request: Request) {
       line_items: lineItems,
       mode: "payment",
       
-      // ASSOCIA A SESSÃO AO USUÁRIO LOGADO
       metadata: {
         userId: userId || "", 
       },

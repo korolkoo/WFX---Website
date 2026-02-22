@@ -1,7 +1,8 @@
 "use client";
 
-import { createClient } from '@supabase/supabase-js';
 import { useEffect, useState, Suspense, use, useMemo, useRef } from 'react';
+// CORREÇÃO 1: Importando o Supabase corretamente para o Next.js ler o usuário logado
+import { createClient } from '@/utils/supabase/client';
 import { useTheme } from "next-themes";
 import { Moon, Sun, ShoppingBag, Instagram, Mail, Phone, Code, ChevronLeft, ChevronRight, Maximize2, AlertCircle, Menu, X, Ruler, Gem, Layers, Scale, User, AlertTriangle, MessageCircle, Droplet, Share2, Check } from "lucide-react";
 import { Canvas } from "@react-three/fiber";
@@ -13,14 +14,7 @@ import { useCartStore } from "@/store/useCartStore";
 import CartSidebar from "@/components/CartSidebar";
 
 // ==============================================================================
-// 1. CONFIGURAÇÃO E INTEGRAÇÃO (SUPABASE)
-// ==============================================================================
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-// ==============================================================================
-// 2. DEFINIÇÃO DE TIPOS E INTERFACES
+// 1. DEFINIÇÃO DE TIPOS E INTERFACES
 // ==============================================================================
 interface Product {
   id: number;
@@ -31,6 +25,7 @@ interface Product {
   price: number;
   image_url: string;
   file_url?: string;
+  zip_url?: string;
   glb_url?: string;
   material_config?: any; 
   video_360_url?: string;
@@ -41,82 +36,37 @@ interface Product {
 }
 
 // ==============================================================================
-// 3. CONSTANTES E MATERIAIS 3D
+// 2. CONSTANTES E MATERIAIS 3D
 // ==============================================================================
 const DENSITIES = {
-  brass: 8.5,     // Latão
-  silver: 10.0,   // Prata 925
-  gold10k: 10.0,  // Ouro 10k
-  gold18k: 15.0   // Ouro 18k
+  brass: 8.5,     
+  silver: 10.0,   
+  gold10k: 10.0,  
+  gold18k: 15.0   
 };
 
 const MATERIALS = {
-  // METAIS
   gold: new THREE.MeshPhysicalMaterial({ color: "#FFD700", metalness: 1.0, roughness: 0.15, clearcoat: 1.0, envMapIntensity: 2.0 }),
-
-  silver: new THREE.MeshPhysicalMaterial({
-    color: "#FFFFFF",
-    emissive: "#111111",
-    metalness: 1.0,
-    roughness: 0.0,
-    clearcoat: 1.0,
-    envMapIntensity: 2.5
-  }),
-
+  silver: new THREE.MeshPhysicalMaterial({ color: "#FFFFFF", emissive: "#111111", metalness: 1.0, roughness: 0.0, clearcoat: 1.0, envMapIntensity: 2.5 }),
   roseGold: new THREE.MeshPhysicalMaterial({ color: "#B76E79", metalness: 1.0, roughness: 0.15, clearcoat: 1.0, envMapIntensity: 2.0 }),
-
-  // GEMAS
-  diamond: new THREE.MeshPhysicalMaterial({
-    color: "#ffffff", metalness: 0.1, roughness: 0, transmission: 1, thickness: 10, ior: 2.4,
-    envMapIntensity: 5, dispersion: 15
-  }),
-
-  // RUBI 
-  ruby: new THREE.MeshPhysicalMaterial({
-    color: "#ff0000", 
-    emissive: "#330000", 
-    metalness: 0.1, roughness: 0, transmission: 0.6, thickness: 10, ior: 1.76,
-    envMapIntensity: 3,
-    clearcoat: 1.0,
-    attenuationColor: new THREE.Color("#ff0000"), attenuationDistance: 5
-  }),
-
-  // SAFIRA 
-  sapphire: new THREE.MeshPhysicalMaterial({
-    color: "#0000ff",
-    emissive: "#000033",
-    metalness: 0.1, roughness: 0, transmission: 0.6, thickness: 10, ior: 1.76,
-    envMapIntensity: 3,
-    clearcoat: 1.0,
-    attenuationColor: new THREE.Color("#0000ff"), attenuationDistance: 5
-  }),
-
-  // ESMERALDA 
-  emerald: new THREE.MeshPhysicalMaterial({
-    color: "#00ff00",
-    emissive: "#003300",
-    metalness: 0.1, roughness: 0, transmission: 0.6, thickness: 10, ior: 1.57,
-    envMapIntensity: 3,
-    clearcoat: 1.0,
-    attenuationColor: new THREE.Color("#00ff00"), attenuationDistance: 5
-  }),
-
+  diamond: new THREE.MeshPhysicalMaterial({ color: "#ffffff", metalness: 0.1, roughness: 0, transmission: 1, thickness: 10, ior: 2.4, envMapIntensity: 5, dispersion: 15 }),
+  ruby: new THREE.MeshPhysicalMaterial({ color: "#ff0000", emissive: "#330000", metalness: 0.1, roughness: 0, transmission: 0.6, thickness: 10, ior: 1.76, envMapIntensity: 3, clearcoat: 1.0, attenuationColor: new THREE.Color("#ff0000"), attenuationDistance: 5 }),
+  sapphire: new THREE.MeshPhysicalMaterial({ color: "#0000ff", emissive: "#000033", metalness: 0.1, roughness: 0, transmission: 0.6, thickness: 10, ior: 1.76, envMapIntensity: 3, clearcoat: 1.0, attenuationColor: new THREE.Color("#0000ff"), attenuationDistance: 5 }),
+  emerald: new THREE.MeshPhysicalMaterial({ color: "#00ff00", emissive: "#003300", metalness: 0.1, roughness: 0, transmission: 0.6, thickness: 10, ior: 1.57, envMapIntensity: 3, clearcoat: 1.0, attenuationColor: new THREE.Color("#00ff00"), attenuationDistance: 5 }),
   onyx: new THREE.MeshPhysicalMaterial({ color: "#000000", metalness: 0, roughness: 0, clearcoat: 1.0, envMapIntensity: 2 }),
 };
 
 // ==============================================================================
-// 4. COMPONENTE: VISUALIZADOR 3D (R3F) - CORRIGIDO
+// 3. COMPONENTE: VISUALIZADOR 3D (R3F)
 // ==============================================================================
 function ModelViewer({ url, config }: { url: string, config?: any }) {
   const { scene } = useGLTF(url) as any;
 
-  // CORREÇÃO AQUI: Salva o clone em uma variável e o retorna
   const clonedScene = useMemo(() => {
     const cloned = scene.clone(true);
     cloned.traverse((child: any) => {
       if (child.isMesh) {
         let materialToApply = null;
-
         const partConfig = config ? config[child.name] : null;
 
         if (partConfig) {
@@ -125,15 +75,7 @@ function ModelViewer({ url, config }: { url: string, config?: any }) {
           }
           else if (typeof partConfig === 'object' && partConfig.type === 'resin') {
             materialToApply = new THREE.MeshPhysicalMaterial({
-              color: partConfig.color,
-              metalness: 0.0,
-              roughness: 0.1,
-              clearcoat: 1.0,
-              clearcoatRoughness: 0.05,
-              reflectivity: 0.5,
-              ior: 1.5,
-              envMapIntensity: 1.2,
-              side: THREE.DoubleSide
+              color: partConfig.color, metalness: 0.0, roughness: 0.1, clearcoat: 1.0, clearcoatRoughness: 0.05, reflectivity: 0.5, ior: 1.5, envMapIntensity: 1.2, side: THREE.DoubleSide
             });
           }
         }
@@ -151,17 +93,14 @@ function ModelViewer({ url, config }: { url: string, config?: any }) {
         child.receiveShadow = true;
       }
     });
-    
-    // Retorna a cena clonada e processada!
     return cloned;
   }, [scene, config]);
 
-  // CORREÇÃO AQUI: Passa a `clonedScene` pro primitive em vez da `scene` original
   return <Stage environment="city" intensity={1} shadows={false} adjustCamera={false}><primitive object={clonedScene} /></Stage>;
 }
 
 // ==============================================================================
-// 4.5 COMPONENTE: BOTÃO DE COMPARTILHAR
+// 4. COMPONENTE: BOTÃO DE COMPARTILHAR
 // ==============================================================================
 function ShareButton({ productTitle }: { productTitle: string }) {
   const [copiado, setCopiado] = useState(false);
@@ -199,22 +138,14 @@ function ShareButton({ productTitle }: { productTitle: string }) {
 
   return (
     <>
-      <button
-        onClick={handleShare}
-        className="text-wfx-muted hover:text-wfx-primary transition-colors outline-none flex items-center justify-center mt-0.5"
-        title="Compartilhar peça"
-      >
+      <button onClick={handleShare} className="text-wfx-muted hover:text-wfx-primary transition-colors outline-none flex items-center justify-center mt-0.5" title="Compartilhar peça">
         {copiado ? <Check size={22} className="text-green-500 animate-in fade-in" /> : <Share2 size={22} />}
       </button>
 
       {showToast && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-gray-900 dark:bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 z-[9999] animate-in slide-in-from-bottom-5 fade-in duration-300 border border-gray-700">
-          <div className="bg-green-500/20 p-1 rounded-full">
-            <Check size={16} className="text-green-400" />
-          </div>
-          <span className="text-sm font-bold tracking-wide whitespace-nowrap">
-            Link copiado para a área de transferência!
-          </span>
+          <div className="bg-green-500/20 p-1 rounded-full"><Check size={16} className="text-green-400" /></div>
+          <span className="text-sm font-bold tracking-wide whitespace-nowrap">Link copiado para a área de transferência!</span>
         </div>
       )}
     </>
@@ -226,6 +157,10 @@ function ShareButton({ productTitle }: { productTitle: string }) {
 // ==============================================================================
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  
+  // CORREÇÃO 2: Instanciando o cliente correto dentro do componente
+  const supabase = createClient(); 
+  
   const { addItem, totalItems, toggleCart } = useCartStore();
   const [product, setProduct] = useState<Product | null>(null);
   const { theme, setTheme } = useTheme();
@@ -236,11 +171,16 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mediaContainerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  
+  const [hasPurchased, setHasPurchased] = useState(false);
+  const [isCheckingPurchase, setIsCheckingPurchase] = useState(true);
 
   useEffect(() => {
     setMounted(true);
     async function fetchProduct() {
+      // 1. Busca os detalhes do produto
       const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
+      
       if (data) {
         setProduct(data as Product);
         const media = [];
@@ -249,15 +189,36 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
         if (data.video_real_url) media.push({ type: 'videoReal', label: 'Vídeo Real', url: data.video_real_url });
         media.push({ type: 'image', label: 'Foto', url: data.image_url });
         setAvailableMedia(media);
+
+        // 2. Verifica se o usuário atual logado já comprou esta peça
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          const { data: purchaseRecord, error: purchaseError } = await supabase
+            .from('purchases')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('product_id', data.id)
+            .maybeSingle(); 
+
+          if (purchaseRecord) {
+            setHasPurchased(true); // Se achou no banco, muda o estado do botão!
+          }
+          if (purchaseError) {
+             console.error("Erro ao checar compra:", purchaseError);
+          }
+        }
       }
-      if (error) console.error("Erro:", error);
+      setIsCheckingPurchase(false);
+      if (error) console.error("Erro ao buscar produto:", error);
     }
+    
     fetchProduct();
 
     const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
-  }, [id]);
+  }, [id, supabase]);
 
   const stonesList = useMemo(() => {
     if (!product?.stones_info) return null;
@@ -539,6 +500,19 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                       <span>FALAR COM ESPECIALISTA</span>
                     </Link>
                   </div>
+                ) : isCheckingPurchase ? (
+                  <button disabled className="w-full bg-wfx-muted/10 text-wfx-muted font-bold py-4 px-6 rounded-lg flex items-center justify-center gap-3 cursor-wait animate-pulse">
+                    <div className="w-5 h-5 border-2 border-wfx-muted border-t-transparent rounded-full animate-spin"></div>
+                    CARREGANDO...
+                  </button>
+                ) : hasPurchased ? (
+                  <Link 
+                    href="/perfil" 
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-6 rounded-lg shadow-lg shadow-emerald-600/25 transform active:scale-[0.98] transition-all flex items-center justify-center gap-3 group"
+                  >
+                    <Check size={20} className="group-hover:scale-110 transition-transform" />
+                    VOCÊ JÁ POSSUI ESTE ARQUIVO
+                  </Link>
                 ) : (
                   <>
                     <button onClick={() => addItem(product)} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-6 rounded-lg shadow-lg shadow-blue-600/25 transform active:scale-[0.98] transition-all flex items-center justify-center gap-3 group">

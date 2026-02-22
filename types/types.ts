@@ -20,6 +20,7 @@ export interface Product {
   // Mídias
   image_url: string
   file_url?: string | null    
+  zip_url?: string | null
   glb_url?: string | null    
   video_360_url?: string | null
   video_real_url?: string | null
@@ -44,5 +45,6 @@ export interface CartItem {
   price: number
   image_url: string
   file_url?: string
+  zip_url?: string
   quantity: number
 }

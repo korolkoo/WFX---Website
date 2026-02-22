@@ -28,37 +28,54 @@ export async function POST(req: Request) {
     if (!sig || !endpointSecret) return NextResponse.json({ error: "No signature" }, { status: 400 });
     event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
   } catch (err: any) {
-    console.error(`Webhook Error: ${err.message}`);
     return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
   }
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
-    
     const customerEmail = session.customer_details?.email;
     const customerName = session.customer_details?.name || "Cliente";
     const userId = session.metadata?.userId; 
     
     if (customerEmail) {
       try {
+        // Buscamos os itens comprados e expandimos o produto para ver os metadados
         const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
           expand: ['data.price.product'], 
         });
-        
-        // ==============================================
-        // MÁGICA: GERANDO LINKS (SUPABASE OU DRIVE)
-        // ==============================================
+
         const orderItems = await Promise.all(lineItems.data.map(async (item: any) => {
+            // Puxamos os dados do Stripe
+            const productMetadata = item.price?.product?.metadata || {};
+            const dbId = productMetadata.db_id;
             const productTitle = item.description || "Produto Digital";
-            // Tenta pegar o link do file_url ou zip_url nos metadados do Stripe
-            const rawUrl = item.price.product.metadata.file_url || item.price.product.metadata.zip_url;
             
-            let downloadUrl = rawUrl; // Começa assumindo que é o link direto (Drive/Mega)
+            // 1. TENTATIVA: Pegar o link direto dos metadados do Stripe
+            let rawUrl = productMetadata.zip_url || productMetadata.file_url || null;
+
+            console.log(`🔍 Processando: ${productTitle}`);
+            console.log(`   - Link no Stripe: ${rawUrl ? 'Encontrado' : 'VAZIO'}`);
+
+            // 2. TENTATIVA: Se o Stripe falhou, busca no Banco de Dados (Igual ao Envio Exclusivo)
+            if (!rawUrl && dbId) {
+                console.log(`   - Buscando ID ${dbId} no Supabase...`);
+                const { data: dbProduct } = await supabaseAdmin
+                    .from('products')
+                    .select('file_url, zip_url')
+                    .eq('id', parseInt(dbId))
+                    .maybeSingle();
+                
+                if (dbProduct) {
+                    rawUrl = dbProduct.zip_url || dbProduct.file_url;
+                    console.log(`   - Link recuperado do Banco: ${rawUrl ? 'Sucesso' : 'Falha'}`);
+                }
+            }
+
+            let finalDownloadUrl = rawUrl;
 
             if (rawUrl && rawUrl.includes('/models/')) {
-                // Se for arquivo do Supabase, gera o link assinado com nome limpo
                 const path = rawUrl.split('/models/')[1];
-                const extension = rawUrl.split('.').pop() || 'stl';
+                const extension = rawUrl.split('.').pop()?.split('?')[0] || 'stl';
                 const cleanFileName = `WFX_${productTitle.replace(/[^a-zA-Z0-9]/g, '_')}.${extension}`;
 
                 const { data } = await supabaseAdmin.storage
@@ -67,39 +84,31 @@ export async function POST(req: Request) {
                         download: cleanFileName 
                     });
                 
-                downloadUrl = data?.signedUrl || null;
+                finalDownloadUrl = data?.signedUrl || rawUrl;
             }
 
             return {
                 title: productTitle,
-                downloadUrl: downloadUrl
+                downloadUrl: finalDownloadUrl
             };
         }));
 
-        // ==============================================
-        // MÁGICA: SALVANDO A COMPRA NO BANCO DE DADOS
-        // ==============================================
+        // REGISTRO NO BANCO DE DADOS
         if (userId) {
-          const purchasesToInsert = lineItems.data.map((item: any) => {
-            const dbId = item.price.product.metadata.db_id;
-            return {
-              user_id: userId,
-              product_id: dbId ? parseInt(dbId) : null,
-              stripe_session_id: session.id
-            };
-          }).filter((p: any) => p.product_id !== null);
+            const purchases = lineItems.data
+                .map((item: any) => ({
+                    user_id: userId,
+                    product_id: item.price?.product?.metadata?.db_id ? parseInt(item.price.product.metadata.db_id) : null,
+                    stripe_session_id: session.id
+                }))
+                .filter(p => p.product_id !== null);
 
-          if (purchasesToInsert.length > 0) {
-            const { error: dbError } = await supabaseAdmin.from('purchases').insert(purchasesToInsert);
-            if (dbError) {
-                console.error("❌ Erro ao salvar no Supabase:", dbError);
+            if (purchases.length > 0) {
+                await supabaseAdmin.from('purchases').insert(purchases);
             }
-          }
         }
 
-        // ==============================================
         // ENVIO DO E-MAIL
-        // ==============================================
         const orderId = `#${session.id.slice(-6).toUpperCase()}`;
         const emailHtml = getEmailTemplate(customerName, orderId, orderItems);
 
@@ -110,9 +119,9 @@ export async function POST(req: Request) {
           html: emailHtml,
         });
 
-        console.log(`✅ E-mail enviado para ${customerEmail}`);
+        console.log(`✅ Fluxo finalizado para ${customerEmail}`);
       } catch (error) {
-        console.error("❌ Erro no processamento pós-compra:", error);
+        console.error("❌ Erro no processamento:", error);
       }
     }
   }

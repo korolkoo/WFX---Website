@@ -7,6 +7,7 @@ export interface CartItem {
   price: number;
   image_url: string;
   file_url?: string;
+  zip_url?: string;
   quantity: number;
 }
 
@@ -44,6 +45,7 @@ export const useCartStore = create<CartState>()(
               price: product.price, 
               image_url: product.image_url,
               file_url: product.file_url,
+              zip_url: product.zip_url,
               quantity: 1 
           }],
           isOpen: true,
