@@ -289,8 +289,8 @@ function HomeContent() {
 
               {/* TEXTO INFERIOR: Fixado no fundo absoluto */}
               {featuredProducts.length > 0 && (
-                <div className="absolute bottom-0 left-0 right-0 text-center z-20 animate-in fade-in slide-in-from-bottom-4 duration-700 mt-auto">
-                  <Link href={`/produto/${featuredProducts[featuredIndex].id}`} className="text-[10px] font-bold uppercase tracking-[0.1em] text-wfx-muted hover:text-wfx-primary transition-colors block mb-4">
+                <div className="absolute bottom-2 left-0 right-0 text-center z-20 animate-in fade-in slide-in-from-bottom-4 duration-700 mt-auto">
+                  <Link href={`/produto/${featuredProducts[featuredIndex].id}`} className="text-[10px] font-bold uppercase tracking-[0.1em] text-wfx-muted hover:text-wfx-primary transition-colors block mb-2">
                     Ver Detalhes &rarr;
                   </Link>
 
