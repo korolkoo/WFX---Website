@@ -1,77 +1,97 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export interface CartItem {
+export interface Product {
   id: number;
   title: string;
   price: number;
   image_url: string;
+  category: string;
+  usage: 'Prototipagem' | 'Borracha';
   file_url?: string;
   zip_url?: string;
-  quantity: number;
+  quantity?: number;
 }
 
-interface CartState {
-  items: CartItem[];
-  isOpen: boolean;
-  addItem: (product: any) => void;
+interface CartStore {
+  items: Product[];
+  addItem: (item: Product) => void;
   removeItem: (id: number) => void;
-  toggleCart: () => void;
-  closeCart: () => void; // (Opcional) Útil se quiser fechar sem limpar
   clearCart: () => void;
+  isOpen: boolean;
+  toggleCart: () => void;
   totalItems: () => number;
-  totalPrice: () => number;
+  cartTotal: () => number;
+  discountAmount: () => number;
+  finalTotal: () => number;
 }
 
-export const useCartStore = create<CartState>()(
+export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
       isOpen: false,
-
-      addItem: (product) => {
+      
+      addItem: (item) => {
         const currentItems = get().items;
-        const existingItem = currentItems.find((item) => item.id === product.id);
-
-        if (existingItem) {
-          set({ isOpen: true });
-          return; 
-        } 
+        const existingItem = currentItems.find(i => i.id === item.id);
         
-        set({
-          items: [...currentItems, { 
-              id: product.id, 
-              title: product.title, 
-              price: product.price, 
-              image_url: product.image_url,
-              file_url: product.file_url,
-              zip_url: product.zip_url,
-              quantity: 1 
-          }],
-          isOpen: true,
-        });
+        if (existingItem) {
+          // Arquivos digitais não precisam de 2 quantidades, mas mantemos a lógica por segurança
+          set({ items: currentItems }); 
+        } else {
+          set({ items: [...currentItems, { ...item, quantity: 1 }], isOpen: true });
+        }
       },
-
+      
       removeItem: (id) => {
-        set({ items: get().items.filter((item) => item.id !== id) });
+        set({ items: get().items.filter(item => item.id !== id) });
       },
-
+      
+      clearCart: () => set({ items: [] }),
       toggleCart: () => set({ isOpen: !get().isOpen }),
       
-      // Adicionei essa função utilitária caso precise forçar o fechamento em algum lugar
-      closeCart: () => set({ isOpen: false }),
-
-      // --- AQUI ESTÁ A MÁGICA ---
-      // Antes: clearCart: () => set({ items: [] }),
-      // Agora: Limpa os itens E define isOpen como false
-      clearCart: () => set({ items: [], isOpen: false }),
-
-      totalItems: () => get().items.length,
+      totalItems: () => {
+        return get().items.reduce((total, item) => total + (item.quantity || 1), 0);
+      },
       
-      totalPrice: () => get().items.reduce((total, item) => total + item.price, 0),
+      cartTotal: () => {
+        return get().items.reduce((total, item) => total + (item.price * (item.quantity || 1)), 0);
+      },
+
+      // MÁGICA 1: Calcula qual é o valor exato do desconto
+      discountAmount: () => {
+        const items = get().items;
+        if (items.length === 0) return 0;
+
+        const prices: number[] = [];
+        items.forEach(item => {
+          for (let i = 0; i < (item.quantity || 1); i++) {
+            prices.push(item.price);
+          }
+        });
+
+        // Ordena do menor para o maior preço
+        prices.sort((a, b) => a - b);
+
+        // A cada 4 itens, 1 é grátis. Ex: 4 itens = 1 grátis. 8 itens = 2 grátis.
+        const freeItemsCount = Math.floor(prices.length / 4);
+        
+        let discount = 0;
+        // Soma as peças mais baratas como desconto
+        for (let i = 0; i < freeItemsCount; i++) {
+          discount += prices[i];
+        }
+
+        return discount;
+      },
+
+      finalTotal: () => {
+        return get().cartTotal() - get().discountAmount();
+      }
     }),
     {
-      name: 'wfx-cart-storage',
+      name: 'wfx-cart',
     }
   )
 );

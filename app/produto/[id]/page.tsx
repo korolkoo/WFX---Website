@@ -27,7 +27,7 @@ interface Product {
   file_url?: string;
   zip_url?: string;
   glb_url?: string;
-  material_config?: any; 
+  material_config?: any;
   video_360_url?: string;
   video_real_url?: string;
   size?: string;
@@ -39,10 +39,10 @@ interface Product {
 // 2. CONSTANTES E MATERIAIS 3D
 // ==============================================================================
 const DENSITIES = {
-  brass: 8.5,     
-  silver: 10.0,   
-  gold10k: 10.0,  
-  gold18k: 15.0   
+  brass: 8.5,
+  silver: 10.0,
+  gold10k: 10.0,
+  gold18k: 15.0
 };
 
 const MATERIALS = {
@@ -116,7 +116,7 @@ function ShareButton({ productTitle }: { productTitle: string }) {
     if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
       try {
         await navigator.share(shareData);
-        return; 
+        return;
       } catch (err) {
         console.log("Compartilhamento nativo cancelado: ", err);
       }
@@ -125,12 +125,12 @@ function ShareButton({ productTitle }: { productTitle: string }) {
     try {
       await navigator.clipboard.writeText(window.location.href);
       setCopiado(true);
-      setShowToast(true); 
-      
+      setShowToast(true);
+
       setTimeout(() => {
         setCopiado(false);
         setShowToast(false);
-      }, 3000); 
+      }, 3000);
     } catch (err) {
       console.error("Erro ao copiar: ", err);
     }
@@ -157,11 +157,11 @@ function ShareButton({ productTitle }: { productTitle: string }) {
 // ==============================================================================
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  
+
   // CORREÇÃO 2: Instanciando o cliente correto dentro do componente
-  const supabase = createClient(); 
-  
-  const { addItem, totalItems, toggleCart } = useCartStore();
+  const supabase = createClient();
+
+  const { items: cartItems, addItem, totalItems, toggleCart } = useCartStore();
   const [product, setProduct] = useState<Product | null>(null);
   const { theme, setTheme } = useTheme();
 
@@ -171,7 +171,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mediaContainerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  
+
   const [hasPurchased, setHasPurchased] = useState(false);
   const [isCheckingPurchase, setIsCheckingPurchase] = useState(true);
 
@@ -180,7 +180,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     async function fetchProduct() {
       // 1. Busca os detalhes do produto
       const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
-      
+
       if (data) {
         setProduct(data as Product);
         const media = [];
@@ -192,27 +192,27 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
         // 2. Verifica se o usuário atual logado já comprou esta peça
         const { data: { user } } = await supabase.auth.getUser();
-        
+
         if (user) {
           const { data: purchaseRecord, error: purchaseError } = await supabase
             .from('purchases')
             .select('id')
             .eq('user_id', user.id)
             .eq('product_id', data.id)
-            .maybeSingle(); 
+            .maybeSingle();
 
           if (purchaseRecord) {
             setHasPurchased(true); // Se achou no banco, muda o estado do botão!
           }
           if (purchaseError) {
-             console.error("Erro ao checar compra:", purchaseError);
+            console.error("Erro ao checar compra:", purchaseError);
           }
         }
       }
       setIsCheckingPurchase(false);
       if (error) console.error("Erro ao buscar produto:", error);
     }
-    
+
     fetchProduct();
 
     const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -500,30 +500,61 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                       <span>FALAR COM ESPECIALISTA</span>
                     </Link>
                   </div>
-                ) : isCheckingPurchase ? (
-                  <button disabled className="w-full bg-wfx-muted/10 text-wfx-muted font-bold py-4 px-6 rounded-lg flex items-center justify-center gap-3 cursor-wait animate-pulse">
-                    <div className="w-5 h-5 border-2 border-wfx-muted border-t-transparent rounded-full animate-spin"></div>
-                    CARREGANDO...
-                  </button>
-                ) : hasPurchased ? (
-                  <Link 
-                    href="/perfil" 
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-6 rounded-lg shadow-lg shadow-emerald-600/25 transform active:scale-[0.98] transition-all flex items-center justify-center gap-3 group"
-                  >
-                    <Check size={20} className="group-hover:scale-110 transition-transform" />
-                    VOCÊ JÁ POSSUI ESTE ARQUIVO
-                  </Link>
                 ) : (
-                  <>
-                    <button onClick={() => addItem(product)} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-6 rounded-lg shadow-lg shadow-blue-600/25 transform active:scale-[0.98] transition-all flex items-center justify-center gap-3 group">
-                      <ShoppingBag size={20} className="group-hover:animate-bounce" />
-                      ADICIONAR AO CARRINHO
-                    </button>
-                    <div className="flex items-center justify-center gap-2 mt-4 text-[10px] text-wfx-muted font-medium">
+                  <div className="flex flex-col space-y-4">
+                    
+                    {/* 1. SLOT DO AVISO DE PROMOÇÃO (Agora sempre verde!) */}
+                    <div className={`p-2.5 rounded-md text-[10px] font-bold text-center border transition-all duration-300 bg-emerald-500/10 border-emerald-500/30 text-emerald-500 ${
+                      (!isCheckingPurchase && !hasPurchased && !cartItems.some(item => item.id === product.id))
+                        ? 'opacity-100'
+                        : 'opacity-40 pointer-events-none select-none' // Efeito apagado quando inativo
+                    }`}>
+                      {cartItems.length % 4 === 0 && cartItems.length > 0
+                        ? '🎉 Parabéns! Você ganhou a peça de menor valor de GRAÇA!'
+                        : `Faltam ${4 - (cartItems.length % 4)} peças para você ganhar 1 GRÁTIS!`
+                      }
+                    </div>
+
+                    {/* 2. SLOT DO BOTÃO (Altura fixa travada em exatos 56px) */}
+                    {isCheckingPurchase ? (
+                      <button disabled className="w-full h-[56px] bg-wfx-muted/10 text-wfx-muted font-bold rounded-lg flex items-center justify-center gap-3 cursor-wait animate-pulse">
+                        <div className="w-5 h-5 border-2 border-wfx-muted border-t-transparent rounded-full animate-spin"></div>
+                        CARREGANDO...
+                      </button>
+                    ) : hasPurchased ? (
+                      <Link 
+                        href="/perfil" 
+                        className="w-full h-[56px] bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg shadow-lg shadow-emerald-600/25 transform active:scale-[0.98] transition-all flex items-center justify-center gap-3 group"
+                      >
+                        <Check size={20} className="group-hover:scale-110 transition-transform" />
+                        VOCÊ JÁ POSSUI ESTE ARQUIVO
+                      </Link>
+                    ) : cartItems.some(item => item.id === product.id) ? (
+                      <button 
+                        onClick={toggleCart} 
+                        className="w-full h-[56px] bg-blue-600/20 text-blue-500 border border-blue-500/50 hover:bg-blue-600/30 font-bold rounded-lg transition-all flex items-center justify-center gap-3"
+                      >
+                        <Check size={20} />
+                        ADICIONADO AO CARRINHO
+                      </button>
+                    ) : (
+                      <button onClick={() => addItem(product)} className="w-full h-[56px] bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-lg shadow-blue-600/25 transform active:scale-[0.98] transition-all flex items-center justify-center gap-3 group">
+                        <ShoppingBag size={20} className="group-hover:animate-bounce" />
+                        ADICIONAR AO CARRINHO
+                      </button>
+                    )}
+
+                    {/* 3. SLOT DO TEXTO VERDE INFERIOR (Sempre piscando, apenas mais transparente quando inativo) */}
+                    <div className={`flex items-center justify-center gap-2 text-[10px] text-wfx-muted font-medium transition-all duration-300 ${
+                      (!isCheckingPurchase && !hasPurchased && !cartItems.some(item => item.id === product.id))
+                        ? 'opacity-100'
+                        : 'opacity-50 pointer-events-none select-none' // Efeito apagado, mas sem o grayscale para manter o verde vivo!
+                    }`}>
                       <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                       Arquivo verificado e pronto para impressão 3D.
                     </div>
-                  </>
+
+                  </div>
                 )}
               </div>
             </div>

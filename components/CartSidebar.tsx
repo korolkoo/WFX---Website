@@ -1,43 +1,36 @@
 "use client";
 
 import { useCartStore } from "@/store/useCartStore";
-import { X, Trash2, ShoppingBag, ArrowLeft, ArrowRight } from "lucide-react";
-import { loadStripe } from "@stripe/stripe-js";
+import { X, Trash2, ShoppingBag, ArrowLeft, Tag } from "lucide-react";
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from "next/navigation";
 
-// Inicializa o Stripe
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY!);
-
 export default function CartSidebar() {
-    const { items, isOpen, toggleCart, removeItem, totalPrice } = useCartStore();
+    const { items, isOpen, toggleCart, removeItem, cartTotal, discountAmount, finalTotal } = useCartStore();
     const router = useRouter();
 
     const handleCheckout = async () => {
         try {
-            // 1. Instancia o Supabase e pega o usuário logado
             const supabase = createClient();
             const { data: { user } } = await supabase.auth.getUser();
 
-            // 2. Trava o checkout se o usuário não estiver logado
             if (!user) {
-                toggleCart(); // Fecha a barra lateral do carrinho
-                router.push('/login'); // Redireciona o usuário silenciosamente
+                toggleCart();
+                router.push('/login');
                 return;
             }
 
-            // 3. Faz a requisição enviando items E userId
             const response = await fetch('/api/checkout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     items: items,
-                    userId: user.id // <--- O ID VAI AQUI!
+                    userId: user.id 
                 }),
             });
 
             const data = await response.json();
-            
+
             if (data.url) {
                 window.location.href = data.url;
             } else {
@@ -57,65 +50,61 @@ export default function CartSidebar() {
             {/* Fundo Escuro */}
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={toggleCart}></div>
 
-            {/* Painel Lateral */}
-            <div className="relative w-full max-w-md bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 border-l border-transparent dark:border-slate-800">
+            {/* Painel Lateral com as cores originais da WFX */}
+            <div className="relative w-full max-w-md bg-wfx-bg h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 border-l border-wfx-border">
 
                 {/* Cabeçalho */}
-                <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-gray-50/50 dark:bg-slate-900/50">
-                    <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800 dark:text-gray-100">
+                <div className="p-6 border-b border-wfx-border flex justify-between items-center bg-wfx-card/50">
+                    <h2 className="text-xl font-bold flex items-center gap-2 text-wfx-text">
                         <ShoppingBag className="text-wfx-primary" size={22} />
                         Seu Carrinho
-                        <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">({items.length} itens)</span>
+                        <span className="text-sm font-normal text-wfx-muted ml-1">({items.length})</span>
                     </h2>
-                    <button onClick={toggleCart} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors text-gray-500 dark:text-gray-400">
+                    <button onClick={toggleCart} className="p-2 hover:bg-wfx-card rounded-full transition-colors text-wfx-muted hover:text-wfx-primary">
                         <X size={24} />
                     </button>
                 </div>
 
-                {/* Lista de Itens */}
-                <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-gray-50/30 dark:bg-slate-950/30">
+                {/* Lista de Itens (Ocupa o meio da tela) */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
                     {items.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-slate-600 space-y-4">
-                            <ShoppingBag size={64} opacity={0.2} />
-                            <p className="font-medium text-gray-500 dark:text-slate-500">Seu carrinho está vazio.</p>
-                            <button onClick={toggleCart} className="text-wfx-primary font-bold hover:underline flex items-center gap-1">
+                        <div className="h-full flex flex-col items-center justify-center text-wfx-muted space-y-4">
+                            <ShoppingBag size={64} className="opacity-20" />
+                            <p className="font-medium">Seu carrinho está vazio.</p>
+                            <button onClick={toggleCart} className="text-wfx-primary font-bold hover:underline flex items-center gap-2 mt-2">
                                 <ArrowLeft size={16} /> Voltar para a loja
                             </button>
                         </div>
                     ) : (
                         items.map((item) => (
-                            <div key={item.id} className="group bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-100 dark:border-slate-700 shadow-sm hover:shadow-md transition-all flex gap-4 items-center relative min-h-[110px]">
+                            <div key={item.id} className="group bg-wfx-card p-4 rounded-lg border border-wfx-border shadow-sm hover:border-wfx-primary/50 transition-all flex gap-4 items-center relative">
 
                                 {/* Imagem */}
-                                <div className="w-20 h-20 bg-white rounded-lg overflow-hidden border border-gray-100 dark:border-slate-600 flex-shrink-0 relative">
-                                    <img src={item.image_url} alt={item.title} className="w-full h-full object-cover mix-blend-multiply" />
+                                <div className="w-20 h-20 bg-wfx-bg rounded-md overflow-hidden border border-wfx-border/50 flex-shrink-0">
+                                    <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
                                 </div>
 
                                 {/* Detalhes */}
-                                <div className="flex-1 pr-12 flex flex-col justify-center">
-                                    <h3 className="font-extrabold text-gray-900 dark:text-white text-sm line-clamp-2 leading-tight mb-2">
+                                <div className="flex-1 pr-8">
+                                    <h3 className="font-bold text-wfx-text text-sm line-clamp-2 leading-tight mb-2">
                                         {item.title}
                                     </h3>
-
-                                    <div className="flex items-center">
-                                        <span className="text-blue-600 dark:text-blue-400 font-extrabold text-lg tracking-tight">
-                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}
-                                        </span>
+                                    <div className="text-wfx-primary font-black text-lg tracking-tight">
+                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}
                                     </div>
                                 </div>
 
-                                {/* BADGE DE UNIDADE - POSICIONADO NO CANTO SUPERIOR DIREITO */}
-                                <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
+                                {/* Ações */}
+                                <div className="absolute top-4 right-4 flex flex-col items-end gap-3">
                                     <button
                                         onClick={() => removeItem(item.id)}
-                                        className="text-gray-300 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 p-1 rounded-md transition-colors"
+                                        className="text-wfx-muted hover:text-red-500 transition-colors"
                                         title="Remover item"
                                     >
-                                        <Trash2 size={16} />
+                                        <Trash2 size={18} />
                                     </button>
-                                    
-                                    <div className="text-[9px] uppercase font-bold text-gray-500 dark:text-slate-400 bg-gray-100 dark:bg-slate-700/50 px-2 py-0.5 rounded-sm border border-gray-200 dark:border-slate-600 tracking-wide whitespace-nowrap">
-                                        1 UNIDADE
+                                    <div className="text-[10px] uppercase font-bold text-wfx-muted bg-wfx-bg px-2 py-1 rounded border border-wfx-border whitespace-nowrap">
+                                        1 UN
                                     </div>
                                 </div>
                             </div>
@@ -123,26 +112,68 @@ export default function CartSidebar() {
                     )}
                 </div>
 
-                {/* Rodapé (Totais e Botões) */}
+                {/* ======================================================= */}
+                {/* RODAPÉ 1: CARRINHO VAZIO (Promoção no fundo da tela)    */}
+                {/* ======================================================= */}
+                {items.length === 0 && (
+                    <div className="p-6 border-t border-wfx-border bg-wfx-card flex flex-col gap-5">
+                        <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-4 text-center shadow-inner">
+                            <div className="flex justify-center mb-2">
+                                <Tag className="text-emerald-500" size={20} />
+                            </div>
+                            <h4 className="text-emerald-500 font-black text-xs uppercase tracking-wider mb-1.5">Leve 4, Pague 3</h4>
+                            <p className="text-[11px] text-wfx-muted leading-tight">
+                                Adicione 4 arquivos no carrinho e a peça de menor valor sairá <strong>totalmente de graça!</strong>
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {/* ======================================================= */}
+                {/* RODAPÉ 2: CARRINHO CHEIO (Totais e Botão de Comprar)    */}
+                {/* ======================================================= */}
                 {items.length > 0 && (
-                    <div className="p-6 border-t border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
-                        <div className="flex justify-between items-end mb-6">
-                            <span className="text-gray-500 dark:text-slate-400 font-medium text-lg">Total</span>
-                            <span className="font-extrabold text-3xl text-blue-600 dark:text-blue-400 tracking-tight leading-none">
-                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice())}
-                            </span>
+                    <div className="p-6 border-t border-wfx-border bg-wfx-card flex flex-col gap-5">
+
+                        {/* ALERTA DA PROMOÇÃO (VOLTOU A SER CONDICIONAL: AZUL -> VERDE) */}
+                        <div className={`p-3 rounded-lg text-xs font-bold text-center border transition-colors ${(items.length % 4 === 0)
+                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500' // Verde se atingiu a meta
+                                : 'bg-wfx-primary/10 border-wfx-primary/30 text-wfx-primary' // Azul se ainda falta
+                            }`}>
+                            {items.length % 4 === 0
+                                ? '🎉 Parabéns! Você ganhou a peça de menor valor de GRAÇA!'
+                                : `Faltam ${4 - (items.length % 4)} peças para ganhar 1 GRÁTIS!`
+                            }
                         </div>
 
-                        <div className="space-y-3">
-                            <button onClick={handleCheckout} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-lg shadow-lg shadow-green-600/20 transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-2 group">
-                                <span>FINALIZAR COMPRA</span>
-                                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
-                            </button>
+                        {/* RESUMO DOS VALORES */}
+                        <div className="space-y-3 text-sm font-medium">
+                            <div className="flex justify-between text-wfx-muted">
+                                <span>Subtotal ({items.length} itens)</span>
+                                <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cartTotal())}</span>
+                            </div>
 
-                            <button onClick={toggleCart} className="w-full bg-white dark:bg-transparent border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 font-bold py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-all duration-200 active:scale-[0.98]">
-                                Continuar Comprando
-                            </button>
+                            {discountAmount() > 0 && (
+                                <div className="flex justify-between text-emerald-500 font-bold">
+                                    <span>Desconto (Leve 4, Pague 3)</span>
+                                    <span>- {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(discountAmount())}</span>
+                                </div>
+                            )}
+
+                            <div className="flex justify-between items-center text-xl font-black text-wfx-text pt-3 border-t border-wfx-border/50">
+                                <span>Total</span>
+                                <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(finalTotal())}</span>
+                            </div>
                         </div>
+
+                        {/* BOTÃO RESTAURADO AO AZUL PADRÃO WFX */}
+                        <button onClick={handleCheckout} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-lg shadow-lg shadow-blue-600/25 transform active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                            FINALIZAR COMPRA &rarr;
+                        </button>
+                        
+                        <button onClick={toggleCart} className="w-full text-wfx-muted hover:text-wfx-primary text-xs font-bold uppercase tracking-wider transition-colors text-center">
+                            Continuar Comprando
+                        </button>
                     </div>
                 )}
             </div>

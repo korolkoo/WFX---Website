@@ -57,6 +57,8 @@ function HomeContent() {
   const [globalTotal, setGlobalTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // --- ESTADO DO BANNER DE PROMOÇÃO ---
+  const [isPromoDismissed, setIsPromoDismissed] = useState(false); // Começa como true para evitar "pulo" de tela no carregamento
 
   // --- ESTADOS DO CARROSSEL 3D ---
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
@@ -185,53 +187,94 @@ function HomeContent() {
 
   const scrollToTop = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
+  const handleDismissPromo = () => {
+    setIsPromoDismissed(true);
+  };
+
   if (!mounted) return null;
 
   return (
     <div className="min-h-screen bg-wfx-bg text-wfx-text font-sans transition-colors pb-0">
       <CartSidebar />
 
-      <header className="border-b border-wfx-border sticky top-0 bg-wfx-bg/80 backdrop-blur-md z-50 h-20">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 h-full flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={scrollToTop}>
-            <Image src="/logo.png" alt="WFX Logo" width={100} height={40} priority className="object-contain" />
-          </div>
+      {/* ========================================================= */}
+      {/* CAIXA FIXA QUE SEGURA O BANNER E O HEADER JUNTOS NO TOPO */}
+      {/* ========================================================= */}
+      <div className="sticky top-0 z-50 w-full flex flex-col">
 
-          <nav className="hidden md:flex gap-8 text-sm font-medium text-wfx-muted">
-            <a href="#" className="hover:text-wfx-primary transition-colors">COLEÇÃO 2026</a>
-            <a href="#catalogo" onClick={handleLancamentosClick} className="hover:text-wfx-primary transition-colors">LANÇAMENTOS</a>
-            <Link href="/atendimento" className="hover:text-wfx-primary transition-colors">ATENDIMENTO EXCLUSIVO</Link>
-            <a href="#sobre" onClick={handleSobreClick} className="hover:text-wfx-primary transition-colors">SOBRE</a>
-          </nav>
+        {/* --- BANNER DE PROMOÇÃO --- */}
+        {!isPromoDismissed && mounted && (
+          <div className="bg-wfx-card/95 backdrop-blur-md border-b border-wfx-border flex items-center justify-center relative py-2.5 px-4 overflow-hidden animate-in slide-in-from-top-full duration-500">
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 via-blue-500/5 to-purple-500/5 pointer-events-none"></div>
+            
+            <p className="text-[10px  ] md:text-xs text-wfx-muted font-medium relative z-10 flex items-center gap-2.5 max-w-[90%] md:max-w-none text-center leading-tight">
+              <span className="flex h-2 w-2 relative shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span>
+                <strong className="text-emerald-500 uppercase tracking-widest mr-1">Leve 4, Pague 3:</strong>
+                Adicione 4 arquivos no carrinho e o de menor valor sai <strong className="text-wfx-text font-black">totalmente de graça.</strong>
+              </span>
+            </p>
 
-          <div className="flex items-center gap-2 md:gap-3">
-            <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="p-2 rounded-full hover:bg-wfx-card transition-all text-wfx-muted hover:text-wfx-primary">
-              {theme === "dark" ? <Moon size={20} /> : <Sun size={20} />}
+            <button 
+              onClick={handleDismissPromo} 
+              className="absolute right-3 md:right-6 text-wfx-muted hover:text-wfx-primary transition-colors z-10 p-1 rounded-full hover:bg-wfx-bg"
+              aria-label="Fechar aviso"
+            >
+              <X size={14} />
             </button>
-            <Link href="/perfil" prefetch={false} className="p-2 rounded-full hover:bg-wfx-card transition-all text-wfx-muted hover:text-wfx-primary" title="Minha Conta">
-              <User size={20} />
-            </Link>
-            <button onClick={toggleCart} className="flex items-center gap-2 px-3 py-2 bg-wfx-primary text-white hover:opacity-90 transition-all text-xs md:text-sm font-bold uppercase tracking-wide rounded-sm shadow-lg shadow-blue-500/20">
-              <ShoppingBag size={16} />
-              <span>Carrinho ({totalItems()})</span>
-            </button>
-            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden p-2 text-wfx-text hover:bg-wfx-card rounded-md z-50 relative">
-              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-          </div>
-        </div>
-
-        {mobileMenuOpen && (
-          <div className="md:hidden absolute top-20 left-0 w-full bg-wfx-bg border-b border-wfx-border shadow-2xl animate-in slide-in-from-top-5 z-40 text-wfx-text">
-            <nav className="flex flex-col p-6 space-y-4 text-center font-bold text-lg">
-              <a href="#" onClick={() => setMobileMenuOpen(false)} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">COLEÇÃO 2026</a>
-              <a href="#catalogo" onClick={handleLancamentosClick} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">LANÇAMENTOS</a>
-              <Link href="/atendimento" onClick={() => setMobileMenuOpen(false)} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">ATENDIMENTO EXCLUSIVO</Link>
-              <a href="#sobre" onClick={handleSobreClick} className="py-2 hover:text-wfx-primary">SOBRE</a>
-            </nav>
           </div>
         )}
-      </header>
+
+        {/* --- CABEÇALHO NORMAL --- */}
+        <header className="bg-wfx-bg/80 backdrop-blur-md h-20 border-b border-wfx-border relative">
+          <div className="max-w-7xl mx-auto px-4 md:px-6 h-full flex items-center justify-between">
+            <div className="flex items-center gap-2 cursor-pointer" onClick={scrollToTop}>
+              <Image src="/logo.png" alt="WFX Logo" width={100} height={40} priority className="object-contain" />
+            </div>
+
+            <nav className="hidden md:flex gap-8 text-sm font-medium text-wfx-muted">
+              <a href="#" className="hover:text-wfx-primary transition-colors">COLEÇÃO 2026</a>
+              <a href="#catalogo" onClick={handleLancamentosClick} className="hover:text-wfx-primary transition-colors">LANÇAMENTOS</a>
+              <Link href="/atendimento" className="hover:text-wfx-primary transition-colors">ATENDIMENTO EXCLUSIVO</Link>
+              <a href="#sobre" onClick={handleSobreClick} className="hover:text-wfx-primary transition-colors">SOBRE</a>
+            </nav>
+
+            <div className="flex items-center gap-2 md:gap-3">
+              <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="p-2 rounded-full hover:bg-wfx-card transition-all text-wfx-muted hover:text-wfx-primary">
+                {theme === "dark" ? <Moon size={20} /> : <Sun size={20} />}
+              </button>
+              <Link href="/perfil" prefetch={false} className="p-2 rounded-full hover:bg-wfx-card transition-all text-wfx-muted hover:text-wfx-primary" title="Minha Conta">
+                <User size={20} />
+              </Link>
+              <button onClick={toggleCart} className="flex items-center gap-2 px-3 py-2 bg-wfx-primary text-white hover:opacity-90 transition-all text-xs md:text-sm font-bold uppercase tracking-wide rounded-sm shadow-lg shadow-blue-500/20">
+                <ShoppingBag size={16} />
+                <span>Carrinho ({totalItems()})</span>
+              </button>
+              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden p-2 text-wfx-text hover:bg-wfx-card rounded-md z-50 relative">
+                {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Menu Mobile */}
+          {mobileMenuOpen && (
+            <div className="md:hidden absolute top-20 left-0 w-full bg-wfx-bg border-b border-wfx-border shadow-2xl animate-in slide-in-from-top-5 z-40 text-wfx-text">
+              <nav className="flex flex-col p-6 space-y-4 text-center font-bold text-lg">
+                <a href="#" onClick={() => setMobileMenuOpen(false)} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">COLEÇÃO 2026</a>
+                <a href="#catalogo" onClick={handleLancamentosClick} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">LANÇAMENTOS</a>
+                <Link href="/atendimento" onClick={() => setMobileMenuOpen(false)} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">ATENDIMENTO EXCLUSIVO</Link>
+                <a href="#sobre" onClick={handleSobreClick} className="py-2 hover:text-wfx-primary">SOBRE</a>
+              </nav>
+            </div>
+          )}
+
+          
+        </header>
+
+      </div>
 
       <main>
         {/* --- BANNER HERO 3D (Lado Esquerdo Intacto) --- */}
