@@ -76,7 +76,7 @@ export default function PrivacidadePage() {
                         Política de Privacidade
                     </h1>
                     <p className="text-lg text-gray-500 dark:text-slate-400 leading-relaxed max-w-2xl">
-                        Sua privacidade é séria. Entenda como a WFX.stl coleta, protege e utiliza seus dados em conformidade com a LGPD.
+                        Sua privacidade é séria. Entenda como a WFX coleta, protege e utiliza seus dados em conformidade com a LGPD.
                     </p>
                 </div>
 
