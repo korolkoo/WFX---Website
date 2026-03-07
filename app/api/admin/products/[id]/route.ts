@@ -11,9 +11,14 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(
+    req: Request, 
+    { params }: { params: Promise<{ id: string }> }
+) {
     try {
-        const productId = params.id;
+        const { id } = await params;
+        const productId = id;
+        
         const body = await req.json();
         const { 
             title, price, description, image_url, stripe_product_id, ...rest 
