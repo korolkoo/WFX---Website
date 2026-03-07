@@ -70,11 +70,11 @@ export default function NewProductPage() {
     if (!formData.price || isNaN(parseFloat(formData.price)) || parseFloat(formData.price) <= 0) return toast.error("Insira um preço válido maior que zero.");
     
     if (!imageFile || !glbFile || (!deliveryFile && !externalLink)) {
-      return toast.error("Você precisa enviar Imagem, GLB, e o Arquivo Final (Upload ou Link Google Drive).");
+      return toast.error("Você precisa enviar Imagem, GLB, e o Arquivo Final.");
     }
     
     setLoading(true);
-    const toastId = toast.loading("Salvando produto...");
+    const toastId = toast.loading("Sincronizando com Stripe...");
 
     let imageUrl, deliveryUrl, glbUrl, video360Url, videoRealUrl;
 
@@ -93,42 +93,44 @@ export default function NewProductPage() {
 
       const stonesSummary = stoneRows.filter(row => row.qty || row.name).map(row => `${row.qty || '?'} un. ${row.name || 'Pedra'} (Total: ${row.weight ? `${row.weight}g` : '0g'})`).join(' + ');
 
-      const { error } = await supabase.from('products').insert({
-        title: formData.title,
-        category: formData.category,
-        price: parseFloat(formData.price),
-        usage: formData.usage,
-        description: formData.description,
-        size: formData.size,
-        volume: formData.volume ? parseFloat(formData.volume) : null,
-        image_url: imageUrl,
-        glb_url: glbUrl,
-        file_url: deliveryFile ? deliveryUrl : null, 
-        zip_url: !deliveryFile ? deliveryUrl : null,  
-        video_360_url: video360Url,
-        video_real_url: videoRealUrl,
-        material_config: materialConfig,
-        stones_info: stonesSummary || 'Sem pedras' 
+      // --- ALTERAÇÃO STRIPE ---
+      const response = await fetch('/api/admin/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formData.title,
+          category: formData.category,
+          price: formData.price,
+          usage: formData.usage,
+          description: formData.description,
+          size: formData.size,
+          volume: formData.volume ? parseFloat(formData.volume) : null,
+          image_url: imageUrl,
+          glb_url: glbUrl,
+          file_url: deliveryFile ? deliveryUrl : null, 
+          zip_url: !deliveryFile ? deliveryUrl : null,  
+          video_360_url: video360Url,
+          video_real_url: videoRealUrl,
+          material_config: materialConfig,
+          stones_info: stonesSummary || 'Sem pedras' 
+        }),
       });
 
-      if (error) throw error;
-      toast.success("Produto cadastrado com sucesso!", { id: toastId });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+
+      toast.success("Produto cadastrado no site e no Stripe!", { id: toastId });
       router.push('/admin');
 
     } catch (error: any) {
       toast.error("Erro ao salvar: " + error.message, { id: toastId });
-      toast.loading("Limpando arquivos parciais...", { id: toastId });
-      
+      // Limpeza de arquivos em caso de erro no Stripe
       const deleteFile = async (url: string | undefined, bucket: string) => {
         if (!url || url.includes('drive.google') || url.includes('mega.nz')) return;
         const urlParts = url.split(`/public/${bucket}/`);
         if (urlParts.length === 2) await supabase.storage.from(bucket).remove([decodeURIComponent(urlParts[1])]);
       };
-
-      await Promise.all([
-        deleteFile(imageUrl, 'images'), deleteFile(glbUrl, 'models'), deleteFile(deliveryUrl, 'models'), deleteFile(video360Url, 'videos'), deleteFile(videoRealUrl, 'videos')
-      ]);
-
+      await Promise.all([deleteFile(imageUrl, 'images'), deleteFile(glbUrl, 'models'), deleteFile(deliveryUrl, 'models')]);
     } finally {
       setLoading(false);
     }
@@ -150,7 +152,6 @@ export default function NewProductPage() {
           <h2 className="text-xl font-bold mb-6 flex items-center gap-2"><Box className="text-blue-500" /> Arquivos de Entrega</h2>
 
           <div className="grid md:grid-cols-3 gap-6 mb-8 items-stretch">
-            {/* GLB */}
             <div className="flex flex-col h-full">
               <label className="text-xs font-bold uppercase text-slate-500 mb-2 shrink-0">Visualizador (GLB)*</label>
               <div className={`relative border-2 border-dashed rounded-lg p-6 text-center group cursor-pointer transition-colors flex-1 flex flex-col items-center justify-center ${glbFile ? 'border-blue-500 bg-blue-900/10' : 'border-slate-700 hover:border-blue-500 bg-slate-950'}`}>
@@ -160,7 +161,6 @@ export default function NewProductPage() {
               </div>
             </div>
 
-            {/* --- ARQUIVO FINAL HÍBRIDO --- */}
             <div className="flex flex-col h-full">
               <label className="text-xs font-bold uppercase text-slate-500 mb-2 shrink-0">Arquivo Final*</label>
               <div className="flex-1 flex flex-col justify-between">
@@ -190,7 +190,6 @@ export default function NewProductPage() {
               </div>
             </div>
 
-            {/* IMAGEM */}
             <div className="flex flex-col h-full">
               <label className="text-xs font-bold uppercase text-slate-500 mb-2 shrink-0">Imagem de Capa*</label>
               <div className={`relative border-2 border-dashed rounded-lg p-6 text-center group cursor-pointer transition-colors flex-1 flex flex-col items-center justify-center ${imageFile ? 'border-green-500 bg-green-900/10' : 'border-slate-700 hover:border-green-500 bg-slate-950'}`}>
@@ -220,43 +219,19 @@ export default function NewProductPage() {
             <div><label className="block text-sm font-medium text-slate-400 mb-1">Título</label><input type="text" value={formData.title} onChange={handleTitleChange} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-blue-500 outline-none placeholder:text-slate-600" placeholder="Ex: Anel Solitário" /></div>
             <div className="grid grid-cols-2 gap-4">
               <div><label className="block text-sm font-medium text-slate-400 mb-1">Preço (R$)</label><input type="number" step="0.01" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-blue-500 outline-none placeholder:text-slate-600" placeholder="Ex: 150.00" /></div>
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Categoria</label>
-                <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-blue-500 outline-none cursor-pointer">
-                  {['Anéis', 'Berloques', 'Brincos', 'Escapulários', 'Gargantilhas', 'Pingentes', 'Pulseiras', 'Relicários', 'Acessórios'].map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
+              <div><label className="block text-sm font-medium text-slate-400 mb-1">Categoria</label><select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-blue-500 outline-none cursor-pointer">{['Anéis', 'Berloques', 'Brincos', 'Escapulários', 'Gargantilhas', 'Pingentes', 'Pulseiras', 'Relicários', 'Acessórios'].map(c => <option key={c} value={c}>{c}</option>)}</select></div>
             </div>
             <div><label className="block text-sm font-medium text-slate-400 mb-1 flex items-center gap-2"><Ruler size={16}/> Tamanho / Dimensões</label><input type="text" value={formData.size} onChange={e => setFormData({...formData, size: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-blue-500 outline-none placeholder:text-slate-600" placeholder="Ex: Aro 18 ou 20x20mm" /></div>
             <div><label className="block text-sm font-medium text-slate-400 mb-1">Descrição</label><textarea rows={4} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-blue-500 outline-none resize-none placeholder:text-slate-600" placeholder="Ex: Pingente de Jesus escrito 'Nosso Salvador'..." /></div>
-            <div>
-               <label className="block text-sm font-medium text-slate-400 mb-1">Finalidade</label>
-               <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer bg-slate-950 p-3 rounded-lg border border-slate-800 hover:border-blue-500 flex-1"><input type="radio" name="usage" value="Prototipagem" checked={formData.usage === 'Prototipagem'} onChange={e => setFormData({...formData, usage: e.target.value as any})} className="text-blue-500 focus:ring-0" /><span className="text-sm text-white">Prototipagem</span></label>
-                  <label className="flex items-center gap-2 cursor-pointer bg-slate-950 p-3 rounded-lg border border-slate-800 hover:border-blue-500 flex-1"><input type="radio" name="usage" value="Borracha" checked={formData.usage === 'Borracha'} onChange={e => setFormData({...formData, usage: e.target.value as any})} className="text-blue-500 focus:ring-0" /><span className="text-sm text-white">Molde Borracha</span></label>
-               </div>
-            </div>
+            <div><label className="block text-sm font-medium text-slate-400 mb-1">Finalidade</label><div className="flex gap-4"><label className="flex items-center gap-2 cursor-pointer bg-slate-950 p-3 rounded-lg border border-slate-800 hover:border-blue-500 flex-1"><input type="radio" name="usage" value="Prototipagem" checked={formData.usage === 'Prototipagem'} onChange={e => setFormData({...formData, usage: e.target.value as any})} className="text-blue-500 focus:ring-0" /><span className="text-sm text-white">Prototipagem</span></label><label className="flex items-center gap-2 cursor-pointer bg-slate-950 p-3 rounded-lg border border-slate-800 hover:border-blue-500 flex-1"><input type="radio" name="usage" value="Borracha" checked={formData.usage === 'Borracha'} onChange={e => setFormData({...formData, usage: e.target.value as any})} className="text-blue-500 focus:ring-0" /><span className="text-sm text-white">Molde Borracha</span></label></div></div>
           </div>
 
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl space-y-6">
             <h2 className="text-xl font-bold flex items-center gap-2"><Calculator className="text-amber-500" /> Calculadora de Peso</h2>
-            <div className="bg-slate-950 p-4 rounded-lg border border-slate-800">
-              <label className="text-sm font-bold text-blue-400 mb-2 block flex items-center gap-2"><Scale size={16}/> Volume do 3D (cm³)</label>
-              <input type="number" step="0.001" value={formData.volume} onChange={e => setFormData({...formData, volume: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:border-blue-500 outline-none font-mono text-lg placeholder:text-slate-600" placeholder="Ex: 0.142" />
-            </div>
+            <div className="bg-slate-950 p-4 rounded-lg border border-slate-800"><label className="text-sm font-bold text-blue-400 mb-2 block flex items-center gap-2"><Scale size={16}/> Volume do 3D (cm³)</label><input type="number" step="0.001" value={formData.volume} onChange={e => setFormData({...formData, volume: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:border-blue-500 outline-none font-mono text-lg placeholder:text-slate-600" placeholder="Ex: 0.142" /></div>
 
-            <div className="bg-slate-950 p-4 rounded-lg border border-slate-800">
-              <label className="text-sm font-bold text-purple-400 mb-4 block flex items-center gap-2"><Gem size={16}/> Pedras</label>
-              <div className="flex flex-col gap-3">
-                {stoneRows.map((row, index) => (
-                    <div key={index} className="grid grid-cols-12 gap-2 items-end relative group">
-                        <div className="col-span-3"><label className="text-[10px] text-slate-400 block mb-1">Qtd</label><input type="number" value={row.qty} onChange={(e) => updateStoneRow(index, 'qty', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white text-xs placeholder:text-slate-600" placeholder="Ex: 10" /></div>
-                        <div className="col-span-5"><label className="text-[10px] text-slate-400 block mb-1">Descrição</label><input type="text" value={row.name} onChange={(e) => updateStoneRow(index, 'name', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white text-xs placeholder:text-slate-600" placeholder="Ex: Zircônia 1mm" /></div>
-                        <div className="col-span-3"><label className="text-[10px] text-slate-400 block mb-1 text-right">Peso (g)</label><input type="number" step="0.001" value={row.weight} onChange={(e) => updateStoneRow(index, 'weight', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white text-xs text-right font-bold text-amber-200 placeholder:text-slate-600" placeholder="Ex: 0.002" /></div>
-                        <div className="col-span-1 flex justify-center pb-2">{stoneRows.length > 1 && (<button type="button" onClick={() => removeStoneRow(index)} className="text-slate-600 hover:text-red-500"><Trash2 size={16} /></button>)}</div>
-                    </div>
-                ))}
-              </div>
+            <div className="bg-slate-950 p-4 rounded-lg border border-slate-800"><label className="text-sm font-bold text-purple-400 mb-4 block flex items-center gap-2"><Gem size={16}/> Pedras</label>
+              <div className="flex flex-col gap-3">{stoneRows.map((row, index) => (<div key={index} className="grid grid-cols-12 gap-2 items-end relative group"><div className="col-span-3"><label className="text-[10px] text-slate-400 block mb-1">Qtd</label><input type="number" value={row.qty} onChange={(e) => updateStoneRow(index, 'qty', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white text-xs placeholder:text-slate-600" placeholder="Ex: 10" /></div><div className="col-span-5"><label className="text-[10px] text-slate-400 block mb-1">Descrição</label><input type="text" value={row.name} onChange={(e) => updateStoneRow(index, 'name', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white text-xs placeholder:text-slate-600" placeholder="Ex: Zircônia 1mm" /></div><div className="col-span-3"><label className="text-[10px] text-slate-400 block mb-1 text-right">Peso (g)</label><input type="number" step="0.001" value={row.weight} onChange={(e) => updateStoneRow(index, 'weight', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white text-xs text-right font-bold text-amber-200 placeholder:text-slate-600" placeholder="Ex: 0.002" /></div><div className="col-span-1 flex justify-center pb-2">{stoneRows.length > 1 && (<button type="button" onClick={() => removeStoneRow(index)} className="text-slate-600 hover:text-red-500"><Trash2 size={16} /></button>)}</div></div>))}</div>
               <button type="button" onClick={addStoneRow} className="mt-4 flex items-center gap-2 text-xs font-bold text-blue-400 hover:text-blue-300"><Plus size={14} /> Adicionar Pedra</button>
             </div>
 
