@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-12-15.clover" as any, 
 });
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function POST(request: Request) {
   try {
@@ -13,8 +18,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Carrinho vazio" }, { status: 400 });
     }
 
+    // =================================================================
+    // TRAVA 2: VERIFICAÇÃO DE SEGURANÇA BACKEND (Bloqueio Definitivo)
+    // =================================================================
+    if (userId) {
+      const itemIds = items.map((item: any) => item.id);
+      
+      const { data: existingPurchases, error } = await supabase
+        .from('purchases')
+        .select('product_id')
+        .eq('user_id', userId)
+        .in('product_id', itemIds);
+
+      // Se encontrar alguma peça que ele já comprou, cancela o checkout!
+      if (existingPurchases && existingPurchases.length > 0) {
+        return NextResponse.json({ 
+          error: "DUPLICATED_ITEMS",
+          message: "O usuário já possui itens deste carrinho." 
+        }, { status: 400 });
+      }
+    }
+
     // ==========================================
-    // 1. RECALCULA O DESCONTO NO BACKEND (Segurança)
+    // 1. RECALCULA O DESCONTO NO BACKEND 
     // ==========================================
     const prices: number[] = [];
     items.forEach((item: any) => {
@@ -64,7 +90,7 @@ export async function POST(request: Request) {
     if (discountTotal > 0) {
       // Cria um cupom dinâmico e descartável direto no Stripe!
       const coupon = await stripe.coupons.create({
-        amount_off: Math.round(discountTotal * 100), // Converte para centavos
+        amount_off: Math.round(discountTotal * 100), 
         currency: 'brl',
         duration: 'once',
         name: 'Promoção: Leve 4, Pague 3'
@@ -80,7 +106,7 @@ export async function POST(request: Request) {
       payment_method_types: ["card"], 
       line_items: lineItems,
       mode: "payment",
-      discounts: stripeDiscounts.length > 0 ? stripeDiscounts : undefined, // Aplica o cupom aqui!
+      discounts: stripeDiscounts.length > 0 ? stripeDiscounts : undefined, 
       metadata: {
         userId: userId || "", 
       },

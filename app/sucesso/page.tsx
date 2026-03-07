@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Check, Mail, ArrowRight, Download, HelpCircle, PackageCheck } from "lucide-react";
 import { useCartStore } from "@/store/useCartStore";
@@ -11,9 +11,15 @@ function SuccessContent() {
   const clearCart = useCartStore((state) => state.clearCart);
   const searchParams = useSearchParams();
   const [orderId, setOrderId] = useState("");
+  
+  const hasClearedCart = useRef(false);
 
   useEffect(() => {
-    clearCart();
+    if (!hasClearedCart.current) {
+      clearCart();
+      hasClearedCart.current = true;
+    }
+
     const sessionId = searchParams.get("session_id");
     if (sessionId) {
       setOrderId(`#${sessionId.slice(-6).toUpperCase()}`);

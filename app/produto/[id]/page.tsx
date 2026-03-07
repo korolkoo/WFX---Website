@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, Suspense, use, useMemo, useRef } from 'react';
-// CORREÇÃO 1: Importando o Supabase corretamente para o Next.js ler o usuário logado
 import { createClient } from '@/utils/supabase/client';
 import { useTheme } from "next-themes";
 import { Moon, Sun, ShoppingBag, Instagram, Mail, Phone, Code, ChevronLeft, ChevronRight, Maximize2, AlertCircle, Menu, X, Ruler, Gem, Layers, Scale, User, AlertTriangle, MessageCircle, Droplet, Share2, Check } from "lucide-react";
@@ -60,11 +59,13 @@ const MATERIALS = {
 // 3. COMPONENTE: VISUALIZADOR 3D (R3F)
 // ==============================================================================
 function ModelViewer({ url, config }: { url: string, config?: any }) {
-  const { scene } = useGLTF(url) as any;
+  const { scene: originalScene } = useGLTF(url) as any;
+  const meshRef = useRef<THREE.Group>(null);
 
-  const clonedScene = useMemo(() => {
-    const cloned = scene.clone(true);
-    cloned.traverse((child: any) => {
+  const scene = useMemo(() => {
+    const clonedScene = originalScene.clone(true);
+    
+    clonedScene.traverse((child: any) => {
       if (child.isMesh) {
         let materialToApply = null;
         const partConfig = config ? config[child.name] : null;
@@ -93,10 +94,39 @@ function ModelViewer({ url, config }: { url: string, config?: any }) {
         child.receiveShadow = true;
       }
     });
-    return cloned;
-  }, [scene, config]);
 
-  return <Stage environment="city" intensity={1} shadows={false} adjustCamera={false}><primitive object={clonedScene} /></Stage>;
+    // ==========================================
+    // MÁGICA: NORMALIZAÇÃO MATEMÁTICA IGUAL DA HOME
+    // ==========================================
+    clonedScene.scale.set(1, 1, 1);
+    clonedScene.position.set(0, 0, 0);
+
+    const box = new THREE.Box3().setFromObject(clonedScene);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+
+    // Ajuste o TARGET_SIZE se quiser mais ou menos zoom (coloquei 22 para chegar mais perto)
+    const TARGET_SIZE = 22; 
+    const maxDim = Math.max(size.x, size.y, size.z);
+    
+    if (maxDim > 0) {
+        const scale = TARGET_SIZE / maxDim;
+        clonedScene.scale.setScalar(scale);
+        clonedScene.position.x = -center.x * scale;
+        clonedScene.position.y = -center.y * scale;
+        clonedScene.position.z = -center.z * scale;
+    }
+
+    return clonedScene;
+  }, [originalScene, config]);
+
+  return (
+    <group ref={meshRef}>
+      <primitive object={scene} />
+    </group>
+  );
 }
 
 // ==============================================================================
@@ -157,8 +187,6 @@ function ShareButton({ productTitle }: { productTitle: string }) {
 // ==============================================================================
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-
-  // CORREÇÃO 2: Instanciando o cliente correto dentro do componente
   const supabase = createClient();
 
   const { items: cartItems, addItem, totalItems, toggleCart } = useCartStore();
@@ -178,19 +206,22 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   useEffect(() => {
     setMounted(true);
     async function fetchProduct() {
-      // 1. Busca os detalhes do produto
-      const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, title, category, description, usage, price, image_url, glb_url, material_config, video_360_url, video_real_url, size, volume, stones_info')
+        .eq('id', id)
+        .single();
 
       if (data) {
         setProduct(data as Product);
         const media = [];
-        if (data.glb_url || data.file_url) media.push({ type: '3d', label: 'Visualização 3D' });
+        
+        if (data.glb_url) media.push({ type: '3d', label: 'Visualização 3D' });
         if (data.video_360_url) media.push({ type: 'video360', label: 'Vídeo 360°', url: data.video_360_url });
         if (data.video_real_url) media.push({ type: 'videoReal', label: 'Vídeo Real', url: data.video_real_url });
         media.push({ type: 'image', label: 'Foto', url: data.image_url });
         setAvailableMedia(media);
 
-        // 2. Verifica se o usuário atual logado já comprou esta peça
         const { data: { user } } = await supabase.auth.getUser();
 
         if (user) {
@@ -202,7 +233,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             .maybeSingle();
 
           if (purchaseRecord) {
-            setHasPurchased(true); // Se achou no banco, muda o estado do botão!
+            setHasPurchased(true); 
           }
           if (purchaseError) {
             console.error("Erro ao checar compra:", purchaseError);
@@ -279,7 +310,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     if (section) section.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const viewerUrl = product.glb_url || product.file_url;
+  const viewerUrl = product.glb_url;
 
   return (
     <div className="min-h-screen bg-wfx-bg text-wfx-text font-sans transition-colors pb-0 flex flex-col">
@@ -484,30 +515,46 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
               <div className="mt-8 pt-6 border-t border-wfx-border/50">
                 {product.usage === 'Borracha' ? (
-                  <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 text-center shadow-inner">
-                    <div className="w-8 h-8 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-1.5">
-                      <AlertTriangle className="text-amber-500" size={16} />
+                  isCheckingPurchase ? (
+                    <div className="h-[148px] w-full bg-wfx-muted/5 rounded-xl flex flex-col items-center justify-center gap-3 animate-pulse border border-wfx-border/50">
+                       <div className="w-6 h-6 border-2 border-wfx-primary/50 border-t-wfx-primary rounded-full animate-spin"></div>
+                       <span className="text-xs font-bold text-wfx-muted tracking-widest">CARREGANDO...</span>
                     </div>
-                    <h4 className="text-amber-500 font-black text-[11px] uppercase tracking-wider mb-1">Aquisição Sob Consulta</h4>
-                    <p className="text-[10px] text-wfx-muted mb-3 leading-tight px-1">
-                      Matrizes para borracha exigem o ajuste da <strong>taxa de contração</strong> da sua vulcanização.
-                    </p>
-                    <Link
-                      href="/atendimento"
-                      className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 px-6 rounded-lg shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2 group text-xs"
+                  ) : hasPurchased ? (
+                    <Link 
+                      href="/perfil" 
+                      className="w-full h-[56px] bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg shadow-lg shadow-emerald-600/25 transform active:scale-[0.98] transition-all flex items-center justify-center gap-3 group"
                     >
-                      <MessageCircle size={16} />
-                      <span>FALAR COM ESPECIALISTA</span>
+                      <Check size={20} className="group-hover:scale-110 transition-transform" />
+                      VOCÊ JÁ POSSUI ESTE ARQUIVO
                     </Link>
-                  </div>
+                  ) : (
+                    <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 text-center shadow-inner h-[148px] flex flex-col justify-center">
+                      <div className="w-8 h-8 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-1.5 shrink-0">
+                        <AlertTriangle className="text-amber-500" size={16} />
+                      </div>
+                      <h4 className="text-amber-500 font-black text-[11px] uppercase tracking-wider mb-1">Aquisição Sob Consulta</h4>
+                      <p className="text-[10px] text-wfx-muted mb-3 leading-tight px-1">
+                        Matrizes para borracha exigem o ajuste da <strong>taxa de contração</strong> da sua vulcanização.
+                      </p>
+                      <Link
+                        href="/atendimento"
+                        className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 px-6 rounded-lg shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2 group text-xs shrink-0"
+                      >
+                        <MessageCircle size={16} />
+                        <span>FALAR COM ESPECIALISTA</span>
+                      </Link>
+                    </div>
+                  )
                 ) : (
+                  // --- LAYOUT PARA PROTOTIPAGEM (100% TRAVADO) ---
                   <div className="flex flex-col space-y-4">
                     
-                    {/* 1. SLOT DO AVISO DE PROMOÇÃO (Agora sempre verde!) */}
+                    {/* SLOT 1: AVISO DE PROMOÇÃO (Sempre renderizado, mas apaga se estiver carregando) */}
                     <div className={`p-2.5 rounded-md text-[10px] font-bold text-center border transition-all duration-300 bg-emerald-500/10 border-emerald-500/30 text-emerald-500 ${
                       (!isCheckingPurchase && !hasPurchased && !cartItems.some(item => item.id === product.id))
                         ? 'opacity-100'
-                        : 'opacity-40 pointer-events-none select-none' // Efeito apagado quando inativo
+                        : 'opacity-40 pointer-events-none select-none' 
                     }`}>
                       {cartItems.length % 4 === 0 && cartItems.length > 0
                         ? '🎉 Parabéns! Você ganhou a peça de menor valor de GRAÇA!'
@@ -515,7 +562,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                       }
                     </div>
 
-                    {/* 2. SLOT DO BOTÃO (Altura fixa travada em exatos 56px) */}
+                    {/* SLOT 2: BOTÃO PRINCIPAL (Sempre com h-[56px]) */}
                     {isCheckingPurchase ? (
                       <button disabled className="w-full h-[56px] bg-wfx-muted/10 text-wfx-muted font-bold rounded-lg flex items-center justify-center gap-3 cursor-wait animate-pulse">
                         <div className="w-5 h-5 border-2 border-wfx-muted border-t-transparent rounded-full animate-spin"></div>
@@ -544,16 +591,15 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                       </button>
                     )}
 
-                    {/* 3. SLOT DO TEXTO VERDE INFERIOR (Sempre piscando, apenas mais transparente quando inativo) */}
+                    {/* SLOT 3: TEXTO VERDE INFERIOR (Sempre renderizado) */}
                     <div className={`flex items-center justify-center gap-2 text-[10px] text-wfx-muted font-medium transition-all duration-300 ${
                       (!isCheckingPurchase && !hasPurchased && !cartItems.some(item => item.id === product.id))
                         ? 'opacity-100'
-                        : 'opacity-50 pointer-events-none select-none' // Efeito apagado, mas sem o grayscale para manter o verde vivo!
+                        : 'opacity-50 pointer-events-none select-none' 
                     }`}>
                       <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                       Arquivo verificado e pronto para impressão 3D.
                     </div>
-
                   </div>
                 )}
               </div>
