@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter, useParams } from 'next/navigation';
-import { Save, Box, FileBox, Image as ImageIcon, Video, Gem, Scale, Info, Calculator, Ruler, Plus, Trash2, ArrowLeft, Film, Archive, Link as LinkIcon } from 'lucide-react';
+import { Save, Box, FileBox, Image as ImageIcon, Video, Gem, Scale, Info, Calculator, Ruler, Plus, Trash2, ArrowLeft, Archive, Link as LinkIcon, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import ModelConfigurator from '@/components/admin/ModelConfigurator';
 import { toast } from 'react-hot-toast';
@@ -30,7 +30,7 @@ export default function EditProductPage() {
         glb: string | null;
         video360: string | null;
         videoReal: string | null;
-        stripe_product_id: string | null; // --- ADICIONADO PARA O STRIPE ---
+        stripe_product_id: string | null;
     }>({ image: null, stl: null, zip: null, glb: null, video360: null, videoReal: null, stripe_product_id: null });
 
     const [stoneRows, setStoneRows] = useState([{ qty: '', name: '', weight: '' }]);
@@ -45,8 +45,8 @@ export default function EditProductPage() {
     const [glbPreviewUrl, setGlbPreviewUrl] = useState<string | null>(null);
     const [materialConfig, setMaterialConfig] = useState({});
 
-    const parseStonesInfo = (infoString: string) => {
-        if (!infoString) return [{ qty: '', name: '', weight: '' }];
+    const parseStonesInfo = (infoString: string | null) => {
+        if (!infoString || infoString === 'Sem pedras') return [{ qty: '', name: '', weight: '' }];
         try {
             const parts = infoString.split(' + ');
             const parsedRows = parts.map(part => {
@@ -65,14 +65,19 @@ export default function EditProductPage() {
             if (error) { alert('Erro ao carregar produto.'); router.push('/admin'); return; }
 
             setFormData({
-                title: data.title, category: data.category, price: data.price.toString(), usage: data.usage,
-                description: data.description || '', size: data.size || '', volume: data.volume ? data.volume.toString() : '',
+                title: data.title || '', 
+                category: data.category || 'Anéis', 
+                price: data.price ? data.price.toString() : '', 
+                usage: data.usage || 'Prototipagem',
+                description: data.description || '', 
+                size: data.size || '', 
+                volume: data.volume ? data.volume.toString() : '',
             });
 
             setExistingUrls({
                 image: data.image_url, stl: data.file_url, zip: data.zip_url, glb: data.glb_url,
                 video360: data.video_360_url, videoReal: data.video_real_url,
-                stripe_product_id: data.stripe_product_id // --- CARREGANDO O ID DO STRIPE ---
+                stripe_product_id: data.stripe_product_id 
             });
             
             if (data.zip_url && (data.zip_url.includes('drive.google') || data.zip_url.includes('mega.nz'))) {
@@ -81,7 +86,9 @@ export default function EditProductPage() {
 
             if (data.material_config) setMaterialConfig(data.material_config);
             if (data.glb_url) setGlbPreviewUrl(data.glb_url);
-            if (data.stones_info) setStoneRows(parseStonesInfo(data.stones_info));
+            
+            // Popula as pedras (se não houver, ele inicia vazio graças ao parseStonesInfo atualizado)
+            setStoneRows(parseStonesInfo(data.stones_info));
             
             setLoading(false);
         };
@@ -126,6 +133,11 @@ export default function EditProductPage() {
         if (!formData.title || formData.title.trim() === '') return toast.error("O Título não pode ficar vazio.");
         if (!formData.price || isNaN(parseFloat(formData.price)) || parseFloat(formData.price) <= 0) return toast.error("Insira um preço válido.");
 
+        // Validação se for prototipagem e não tiver nenhum arquivo na base nem sendo enviado
+        if (formData.usage === 'Prototipagem' && !deliveryFile && !externalLink && !existingUrls.stl && !existingUrls.zip) {
+            return toast.error("Para Prototipagem, a peça precisa ter um Arquivo Final ou Link.");
+        }
+
         setSaving(true);
         const toastId = toast.loading("Atualizando no Stripe...");
 
@@ -138,21 +150,26 @@ export default function EditProductPage() {
             if (video360File) finalUrls.video360 = await uploadFile('videos', video360File);
             if (videoRealFile) finalUrls.videoReal = await uploadFile('videos', videoRealFile);
 
-            if (deliveryFile) {
-                const uploadedUrl = await uploadFile('models', deliveryFile);
-                const fileName = deliveryFile.name.toLowerCase();
-                if (fileName.endsWith('.zip') || fileName.endsWith('.rar')) {
-                    finalUrls.zip = uploadedUrl; finalUrls.stl = null;
-                } else {
-                    finalUrls.stl = uploadedUrl; finalUrls.zip = null;
+            // Limpa arquivos se mudou para Borracha
+            if (formData.usage === 'Borracha') {
+                finalUrls.stl = null;
+                finalUrls.zip = null;
+            } else {
+                if (deliveryFile) {
+                    const uploadedUrl = await uploadFile('models', deliveryFile);
+                    const fileName = deliveryFile.name.toLowerCase();
+                    if (fileName.endsWith('.zip') || fileName.endsWith('.rar')) {
+                        finalUrls.zip = uploadedUrl; finalUrls.stl = null;
+                    } else {
+                        finalUrls.stl = uploadedUrl; finalUrls.zip = null;
+                    }
+                } else if (externalLink && externalLink !== existingUrls.zip) {
+                    finalUrls.zip = externalLink; finalUrls.stl = null; 
                 }
-            } else if (externalLink && externalLink !== existingUrls.zip) {
-                finalUrls.zip = externalLink; finalUrls.stl = null; 
             }
 
             const stonesSummary = stoneRows.filter(row => row.qty || row.name).map(row => `${row.qty || '?'} un. ${row.name || 'Pedra'} (Total: ${row.weight ? `${row.weight}g` : '0g'})`).join(' + ');
 
-            // --- ALTERAÇÃO STRIPE ---
             const response = await fetch(`/api/admin/products/${productId}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
@@ -171,15 +188,14 @@ export default function EditProductPage() {
                 video_360_url: finalUrls.video360,
                 video_real_url: finalUrls.videoReal,
                 material_config: materialConfig,
-                stones_info: stonesSummary,
-                stripe_product_id: existingUrls.stripe_product_id // --- ENVIANDO O ID PARA A API ---
+                stones_info: stonesSummary || 'Sem pedras',
+                stripe_product_id: existingUrls.stripe_product_id 
               }),
             });
 
             const result = await response.json();
             if (!response.ok) throw new Error(result.error);
 
-            // Limpeza de arquivos antigos (Sua lógica original)
             const deleteOldFile = async (oldUrl: string | null, newUrl: string | null, bucket: string) => {
                 if (oldUrl && oldUrl !== newUrl && !oldUrl.includes('drive.google') && !oldUrl.includes('mega.nz')) {
                     const urlParts = oldUrl.split(`/public/${bucket}/`);
@@ -220,6 +236,8 @@ export default function EditProductPage() {
 
     if (loading) return <div className="p-8 text-white">Carregando dados do produto...</div>;
 
+    const isDeliveryDisabled = formData.usage === 'Borracha';
+
     return (
         <div className="space-y-8 pb-20 text-white">
             <div className="flex items-center gap-4">
@@ -242,17 +260,38 @@ export default function EditProductPage() {
                         </div>
 
                         <div className="flex flex-col h-full">
-                            <label className="text-xs font-bold uppercase text-slate-500 mb-2 shrink-0 flex justify-between">Arquivo Final{(existingUrls.stl || existingUrls.zip) && <span className="text-green-500 text-[10px] ml-2">(JÁ POSSUI)</span>}</label>
-                            <div className="flex-1 flex flex-col justify-between bg-slate-950 border border-slate-800 p-4 rounded-lg">
-                                <div className={`relative border-2 border-dashed rounded-lg p-3 text-center group cursor-pointer transition-colors flex-1 flex flex-col items-center justify-center min-h-[70px] ${deliveryFile ? 'border-amber-500 bg-amber-900/10' : 'border-slate-700 hover:border-amber-500'} ${externalLink ? 'opacity-30 pointer-events-none' : ''}`}>
-                                    <input type="file" accept=".stl,.3dm,.obj,.zip,.rar" onChange={(e) => { if(e.target.files && e.target.files[0]) { setDeliveryFile(e.target.files[0]); setExternalLink(''); } }} className="absolute inset-0 opacity-0 cursor-pointer" disabled={!!externalLink} />
-                                    {getDeliveryIcon()}
-                                    <span className="text-[10px] font-medium truncate px-2 mt-1 text-slate-500 group-hover:text-amber-400">{getDeliveryText()}</span>
+                            <label className="text-xs font-bold uppercase text-slate-500 mb-2 shrink-0 flex justify-between">
+                                Arquivo Final{(existingUrls.stl || existingUrls.zip) && !isDeliveryDisabled && <span className="text-green-500 text-[10px] ml-2">(JÁ POSSUI)</span>}
+                            </label>
+                            <div className={`flex-1 flex flex-col justify-between bg-slate-950 border border-slate-800 p-4 rounded-lg transition-opacity duration-300 ${isDeliveryDisabled ? 'opacity-40' : ''}`}>
+                                <div className={`relative border-2 border-dashed rounded-lg p-3 text-center group transition-colors flex-1 flex flex-col items-center justify-center min-h-[70px] ${deliveryFile ? 'border-amber-500 bg-amber-900/10' : 'border-slate-700 bg-slate-950'} ${(!isDeliveryDisabled && !externalLink) ? 'cursor-pointer hover:border-amber-500' : ''}`}>
+                                    
+                                    <input 
+                                        type="file" 
+                                        accept=".stl,.3dm,.obj,.zip,.rar,.7z" 
+                                        onChange={(e) => { if(e.target.files && e.target.files[0]) { setDeliveryFile(e.target.files[0]); setExternalLink(''); } }} 
+                                        className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed" 
+                                        disabled={isDeliveryDisabled || !!externalLink} 
+                                    />
+                                    
+                                    <div className={`flex flex-col items-center gap-1 text-slate-500 ${!isDeliveryDisabled && !externalLink ? 'group-hover:text-amber-400' : ''}`}>
+                                        {isDeliveryDisabled ? <AlertCircle size={24} className="text-amber-500/70" /> : getDeliveryIcon()}
+                                        <span className="text-[10px] font-medium truncate px-2 mt-1">
+                                            {isDeliveryDisabled ? "Não é necessário para Borracha" : getDeliveryText()}
+                                        </span>
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-2 my-2 justify-center shrink-0"><span className="h-px w-full bg-slate-800"></span><span className="text-[10px] text-slate-500 font-bold">OU</span><span className="h-px w-full bg-slate-800"></span></div>
-                                <div className={`relative shrink-0 ${deliveryFile ? 'opacity-30 pointer-events-none' : ''}`}>
+                                <div className={`relative shrink-0`}>
                                     <LinkIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                                    <input type="url" placeholder="Link do Google Drive (Anéis)" value={externalLink} onChange={(e) => { setExternalLink(e.target.value); setDeliveryFile(null); }} className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2.5 pl-9 pr-3 text-xs text-white focus:border-blue-500 outline-none placeholder:text-slate-600" disabled={!!deliveryFile} />
+                                    <input 
+                                        type="url" 
+                                        placeholder="Link do Google Drive (Anéis)" 
+                                        value={externalLink} 
+                                        onChange={(e) => { setExternalLink(e.target.value); setDeliveryFile(null); }} 
+                                        className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2.5 pl-9 pr-3 text-xs text-white focus:border-blue-500 outline-none placeholder:text-slate-600 disabled:cursor-not-allowed" 
+                                        disabled={isDeliveryDisabled || !!deliveryFile} 
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -273,13 +312,58 @@ export default function EditProductPage() {
                     <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl space-y-6">
                         <h2 className="text-xl font-bold flex items-center gap-2"><Info className="text-blue-500" /> Informações</h2>
                         <div><label className="block text-sm font-medium text-slate-400 mb-1">Título</label><input type="text" value={formData.title} onChange={handleTitleChange} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-blue-500 outline-none" /></div>
-                        <div className="grid grid-cols-2 gap-4"><div><label className="block text-sm font-medium text-slate-400 mb-1">Preço (R$)</label><input type="number" step="0.01" value={formData.price} onChange={e => setFormData({ ...formData, price: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white" /></div><div><label className="block text-sm font-medium text-slate-400 mb-1">Categoria</label><select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white">{['Anéis', 'Berloques', 'Brincos', 'Escapulários', 'Gargantilhas', 'Pingentes', 'Pulseiras', 'Relicários', 'Acessórios'].map(c => <option key={c} value={c}>{c}</option>)}</select></div></div>
-                        <div><label className="block text-sm font-medium text-slate-400 mb-1">Descrição</label><textarea rows={4} value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white" /></div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <div><label className="block text-sm font-medium text-slate-400 mb-1">Preço (R$)</label><input type="number" step="0.01" value={formData.price} onChange={e => setFormData({ ...formData, price: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-blue-500 outline-none" /></div>
+                            <div><label className="block text-sm font-medium text-slate-400 mb-1">Categoria</label><select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-blue-500 outline-none">{['Anéis', 'Berloques', 'Brincos', 'Escapulários', 'Gargantilhas', 'Pingentes', 'Pulseiras', 'Relicários', 'Acessórios'].map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+                        </div>
+                        
+                        {/* NOVO: CAMPO DE TAMANHO */}
+                        <div><label className="block text-sm font-medium text-slate-400 mb-1 flex items-center gap-2"><Ruler size={16}/> Tamanho / Dimensões</label><input type="text" value={formData.size} onChange={e => setFormData({...formData, size: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-blue-500 outline-none placeholder:text-slate-600" placeholder="Ex: Aro 18 ou 20x20mm" /></div>
+                        
+                        <div><label className="block text-sm font-medium text-slate-400 mb-1">Descrição</label><textarea rows={4} value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-blue-500 outline-none" /></div>
+                        
+                        {/* NOVO: RADIO BUTTONS PARA FINALIDADE */}
+                        <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-1">Finalidade</label>
+                            <div className="flex gap-4">
+                                <label className={`flex items-center gap-2 cursor-pointer p-3 rounded-lg border flex-1 transition-colors ${formData.usage === 'Prototipagem' ? 'bg-blue-900/20 border-blue-500' : 'bg-slate-950 border-slate-800 hover:border-slate-600'}`}>
+                                    <input type="radio" name="usage" value="Prototipagem" checked={formData.usage === 'Prototipagem'} onChange={e => setFormData({...formData, usage: e.target.value as any})} className="text-blue-500 focus:ring-0" />
+                                    <span className="text-sm text-white">Prototipagem</span>
+                                </label>
+                                <label className={`flex items-center gap-2 cursor-pointer p-3 rounded-lg border flex-1 transition-colors ${formData.usage === 'Borracha' ? 'bg-blue-900/20 border-blue-500' : 'bg-slate-950 border-slate-800 hover:border-slate-600'}`}>
+                                    <input type="radio" name="usage" value="Borracha" checked={formData.usage === 'Borracha'} onChange={e => {
+                                        setFormData({...formData, usage: e.target.value as any});
+                                        setDeliveryFile(null);
+                                        setExternalLink('');
+                                    }} className="text-blue-500 focus:ring-0" />
+                                    <span className="text-sm text-white">Molde Borracha</span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl space-y-6">
                         <h2 className="text-xl font-bold flex items-center gap-2"><Calculator className="text-amber-500" /> Calculadora de Peso</h2>
-                        <div className="bg-slate-950 p-4 rounded-lg border border-slate-800"><label className="text-sm font-bold text-blue-400 mb-2 block flex items-center gap-2"><Scale size={16} /> Volume (cm³)</label><input type="number" step="0.001" value={formData.volume} onChange={e => setFormData({ ...formData, volume: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white font-mono" /></div>
+                        <div className="bg-slate-950 p-4 rounded-lg border border-slate-800"><label className="text-sm font-bold text-blue-400 mb-2 block flex items-center gap-2"><Scale size={16} /> Volume (cm³)</label><input type="number" step="0.001" value={formData.volume} onChange={e => setFormData({ ...formData, volume: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white font-mono focus:border-blue-500 outline-none" placeholder="Ex: 0.142" /></div>
+
+                        {/* NOVO: LISTA DE PEDRAS */}
+                        <div className="bg-slate-950 p-4 rounded-lg border border-slate-800"><label className="text-sm font-bold text-purple-400 mb-4 block flex items-center gap-2"><Gem size={16}/> Pedras</label>
+                            <div className="flex flex-col gap-3">{stoneRows.map((row, index) => (<div key={index} className="grid grid-cols-12 gap-2 items-end relative group"><div className="col-span-3"><label className="text-[10px] text-slate-400 block mb-1">Qtd</label><input type="number" value={row.qty} onChange={(e) => updateStoneRow(index, 'qty', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white text-xs placeholder:text-slate-600 focus:border-blue-500 outline-none" placeholder="Ex: 10" /></div><div className="col-span-5"><label className="text-[10px] text-slate-400 block mb-1">Descrição</label><input type="text" value={row.name} onChange={(e) => updateStoneRow(index, 'name', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white text-xs placeholder:text-slate-600 focus:border-blue-500 outline-none" placeholder="Ex: Zircônia 1mm" /></div><div className="col-span-3"><label className="text-[10px] text-slate-400 block mb-1 text-right">Peso (g)</label><input type="number" step="0.001" value={row.weight} onChange={(e) => updateStoneRow(index, 'weight', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white text-xs text-right font-bold text-amber-200 placeholder:text-slate-600 focus:border-blue-500 outline-none" placeholder="Ex: 0.002" /></div><div className="col-span-1 flex justify-center pb-2">{stoneRows.length > 1 && (<button type="button" onClick={() => removeStoneRow(index)} className="text-slate-600 hover:text-red-500"><Trash2 size={16} /></button>)}</div></div>))}</div>
+                            <button type="button" onClick={addStoneRow} className="mt-4 flex items-center gap-2 text-xs font-bold text-blue-400 hover:text-blue-300"><Plus size={14} /> Adicionar Pedra</button>
+                        </div>
+
+                        {/* NOVO: ESTIMATIVA DE PESO */}
+                        <div className="space-y-3 pt-2">
+                            <p className="text-xs font-bold text-slate-500 uppercase">Estimativa</p>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-yellow-900/20 p-3 rounded border border-yellow-800/50 flex justify-between items-center"><span className="text-xs text-yellow-500 font-bold uppercase">Latão</span><span className="font-mono font-bold text-white">{calculationData.brass.toFixed(2)} g</span></div>
+                                <div className="bg-slate-800/50 p-3 rounded border border-slate-600/50 flex justify-between items-center"><span className="text-xs text-slate-400 font-bold uppercase">Prata</span><span className="font-mono font-bold text-white">{calculationData.silver.toFixed(2)} g</span></div>
+                                <div className="bg-amber-900/20 p-3 rounded border border-amber-600/30 flex justify-between items-center"><span className="text-xs text-amber-500 font-bold uppercase">Ouro 10k</span><span className="font-mono font-bold text-amber-200">{calculationData.gold10k.toFixed(2)} g</span></div>
+                                <div className="bg-amber-500/10 p-3 rounded border border-amber-400/50 flex justify-between items-center"><span className="text-xs text-amber-400 font-bold uppercase">Ouro 18k</span><span className="font-mono font-bold text-amber-400">{calculationData.gold18k.toFixed(2)} g</span></div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 

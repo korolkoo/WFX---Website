@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
-import { Save, Box, FileBox, Image as ImageIcon, Video, Gem, Scale, Info, Calculator, Ruler, Plus, Trash2, Archive, Link as LinkIcon } from 'lucide-react';
+import { Save, Box, FileBox, Image as ImageIcon, Video, Gem, Scale, Info, Calculator, Ruler, Plus, Trash2, Archive, Link as LinkIcon, AlertCircle } from 'lucide-react';
 import ModelConfigurator from '@/components/admin/ModelConfigurator';
 import { toast } from 'react-hot-toast';
 
@@ -69,8 +69,13 @@ export default function NewProductPage() {
     if (!formData.title || formData.title.trim() === '') return toast.error("O Título não pode ficar vazio.");
     if (!formData.price || isNaN(parseFloat(formData.price)) || parseFloat(formData.price) <= 0) return toast.error("Insira um preço válido maior que zero.");
     
-    if (!imageFile || !glbFile || (!deliveryFile && !externalLink)) {
-      return toast.error("Você precisa enviar Imagem, GLB, e o Arquivo Final.");
+    // VERIFICAÇÃO CONDICIONAL: Se for prototipagem, exige o arquivo final.
+    if (formData.usage === 'Prototipagem' && !deliveryFile && !externalLink) {
+        return toast.error("Para Prototipagem, precisa enviar o Arquivo Final ou o Link Externo.");
+    }
+
+    if (!imageFile || !glbFile) {
+      return toast.error("Você precisa enviar Imagem e o arquivo GLB.");
     }
     
     setLoading(true);
@@ -85,9 +90,10 @@ export default function NewProductPage() {
       if (video360File) video360Url = await uploadFile('videos', video360File);
       if (videoRealFile) videoRealUrl = await uploadFile('videos', videoRealFile);
 
-      if (deliveryFile) {
+      // Só faz o upload do arquivo final se ele existir (e o uso não o proibir)
+      if (deliveryFile && formData.usage === 'Prototipagem') {
           deliveryUrl = await uploadFile('models', deliveryFile);
-      } else {
+      } else if (externalLink && formData.usage === 'Prototipagem') {
           deliveryUrl = externalLink; 
       }
 
@@ -107,8 +113,8 @@ export default function NewProductPage() {
           volume: formData.volume ? parseFloat(formData.volume) : null,
           image_url: imageUrl,
           glb_url: glbUrl,
-          file_url: deliveryFile ? deliveryUrl : null, 
-          zip_url: !deliveryFile ? deliveryUrl : null,  
+          file_url: (formData.usage === 'Prototipagem' && deliveryFile) ? deliveryUrl : null, 
+          zip_url: (formData.usage === 'Prototipagem' && !deliveryFile) ? deliveryUrl : null,  
           video_360_url: video360Url,
           video_real_url: videoRealUrl,
           material_config: materialConfig,
@@ -143,6 +149,9 @@ export default function NewProductPage() {
       return <FileBox size={24} />;
   }
 
+  // Define se o upload de arquivo de entrega deve estar bloqueado
+  const isDeliveryDisabled = formData.usage === 'Borracha';
+
   return (
     <div className="space-y-8 pb-20 text-white">
       <div><h1 className="text-3xl font-bold mb-2">Novo Produto</h1><p className="text-slate-400">Cadastre a ficha técnica.</p></div>
@@ -162,13 +171,26 @@ export default function NewProductPage() {
             </div>
 
             <div className="flex flex-col h-full">
-              <label className="text-xs font-bold uppercase text-slate-500 mb-2 shrink-0">Arquivo Final*</label>
-              <div className="flex-1 flex flex-col justify-between">
-                  <div className={`relative border-2 border-dashed rounded-lg p-4 text-center group cursor-pointer transition-colors flex-1 flex flex-col items-center justify-center min-h-[80px] ${deliveryFile ? 'border-amber-500 bg-amber-900/10' : 'border-slate-700 hover:border-amber-500 bg-slate-950'} ${externalLink ? 'opacity-30 pointer-events-none' : ''}`}>
-                    <input type="file" accept=".stl,.3dm,.obj,.zip,.rar,.7z" onChange={(e) => { if (e.target.files && e.target.files[0]) { setDeliveryFile(e.target.files[0]); setExternalLink(''); } }} className="absolute inset-0 opacity-0 cursor-pointer" disabled={!!externalLink} />
-                    <div className="flex flex-col items-center gap-1 text-slate-500 group-hover:text-amber-400">
-                      {getDeliveryIcon()}
-                      <span className="text-xs font-medium truncate w-full px-2">{deliveryFile ? deliveryFile.name : "Fazer Upload do Arquivo STL"}</span>
+              <label className="text-xs font-bold uppercase text-slate-500 mb-2 shrink-0">
+                  Arquivo Final {isDeliveryDisabled ? '(Opcional)' : '*'}
+              </label>
+              <div className={`flex-1 flex flex-col justify-between transition-opacity duration-300 ${isDeliveryDisabled ? 'opacity-40' : ''}`}>
+                  <div className={`relative border-2 border-dashed rounded-lg p-4 text-center group transition-colors flex-1 flex flex-col items-center justify-center min-h-[80px] ${deliveryFile ? 'border-amber-500 bg-amber-900/10' : 'border-slate-700 bg-slate-950'} ${(!isDeliveryDisabled && !externalLink) ? 'cursor-pointer hover:border-amber-500' : ''}`}>
+                    
+                    {/* Input só é ativo se não for Borracha e se não tiver link externo */}
+                    <input 
+                        type="file" 
+                        accept=".stl,.3dm,.obj,.zip,.rar,.7z" 
+                        onChange={(e) => { if (e.target.files && e.target.files[0]) { setDeliveryFile(e.target.files[0]); setExternalLink(''); } }} 
+                        className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed" 
+                        disabled={isDeliveryDisabled || !!externalLink} 
+                    />
+                    
+                    <div className={`flex flex-col items-center gap-1 text-slate-500 ${!isDeliveryDisabled && !externalLink ? 'group-hover:text-amber-400' : ''}`}>
+                      {isDeliveryDisabled ? <AlertCircle size={24} className="text-amber-500/70" /> : getDeliveryIcon()}
+                      <span className="text-xs font-medium truncate w-full px-2">
+                          {isDeliveryDisabled ? "Não é necessário para Borracha" : (deliveryFile ? deliveryFile.name : "Fazer Upload do Arquivo STL")}
+                      </span>
                     </div>
                   </div>
                   
@@ -176,15 +198,15 @@ export default function NewProductPage() {
                       <span className="h-px w-full bg-slate-800"></span><span className="text-[10px] text-slate-500 font-bold">OU</span><span className="h-px w-full bg-slate-800"></span>
                   </div>
 
-                  <div className={`relative shrink-0 ${deliveryFile ? 'opacity-30 pointer-events-none' : ''}`}>
+                  <div className={`relative shrink-0`}>
                       <LinkIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                       <input 
                           type="url" 
                           placeholder="Link do Google Drive (Anéis)" 
                           value={externalLink}
                           onChange={(e) => { setExternalLink(e.target.value); setDeliveryFile(null); }}
-                          className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2.5 pl-9 pr-3 text-xs text-white focus:border-blue-500 outline-none placeholder:text-slate-600"
-                          disabled={!!deliveryFile}
+                          className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2.5 pl-9 pr-3 text-xs text-white focus:border-blue-500 outline-none placeholder:text-slate-600 disabled:cursor-not-allowed disabled:bg-slate-900"
+                          disabled={isDeliveryDisabled || !!deliveryFile}
                       />
                   </div>
               </div>
@@ -223,7 +245,24 @@ export default function NewProductPage() {
             </div>
             <div><label className="block text-sm font-medium text-slate-400 mb-1 flex items-center gap-2"><Ruler size={16}/> Tamanho / Dimensões</label><input type="text" value={formData.size} onChange={e => setFormData({...formData, size: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-blue-500 outline-none placeholder:text-slate-600" placeholder="Ex: Aro 18 ou 20x20mm" /></div>
             <div><label className="block text-sm font-medium text-slate-400 mb-1">Descrição</label><textarea rows={4} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-blue-500 outline-none resize-none placeholder:text-slate-600" placeholder="Ex: Pingente de Jesus escrito 'Nosso Salvador'..." /></div>
-            <div><label className="block text-sm font-medium text-slate-400 mb-1">Finalidade</label><div className="flex gap-4"><label className="flex items-center gap-2 cursor-pointer bg-slate-950 p-3 rounded-lg border border-slate-800 hover:border-blue-500 flex-1"><input type="radio" name="usage" value="Prototipagem" checked={formData.usage === 'Prototipagem'} onChange={e => setFormData({...formData, usage: e.target.value as any})} className="text-blue-500 focus:ring-0" /><span className="text-sm text-white">Prototipagem</span></label><label className="flex items-center gap-2 cursor-pointer bg-slate-950 p-3 rounded-lg border border-slate-800 hover:border-blue-500 flex-1"><input type="radio" name="usage" value="Borracha" checked={formData.usage === 'Borracha'} onChange={e => setFormData({...formData, usage: e.target.value as any})} className="text-blue-500 focus:ring-0" /><span className="text-sm text-white">Molde Borracha</span></label></div></div>
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Finalidade</label>
+              <div className="flex gap-4">
+                <label className={`flex items-center gap-2 cursor-pointer p-3 rounded-lg border flex-1 transition-colors ${formData.usage === 'Prototipagem' ? 'bg-blue-900/20 border-blue-500' : 'bg-slate-950 border-slate-800 hover:border-slate-600'}`}>
+                  <input type="radio" name="usage" value="Prototipagem" checked={formData.usage === 'Prototipagem'} onChange={e => setFormData({...formData, usage: e.target.value as any})} className="text-blue-500 focus:ring-0" />
+                  <span className="text-sm text-white">Prototipagem</span>
+                </label>
+                <label className={`flex items-center gap-2 cursor-pointer p-3 rounded-lg border flex-1 transition-colors ${formData.usage === 'Borracha' ? 'bg-blue-900/20 border-blue-500' : 'bg-slate-950 border-slate-800 hover:border-slate-600'}`}>
+                  <input type="radio" name="usage" value="Borracha" checked={formData.usage === 'Borracha'} onChange={e => {
+                      setFormData({...formData, usage: e.target.value as any});
+                      // Limpa os arquivos de entrega ao mudar para Borracha
+                      setDeliveryFile(null);
+                      setExternalLink('');
+                  }} className="text-blue-500 focus:ring-0" />
+                  <span className="text-sm text-white">Molde Borracha</span>
+                </label>
+              </div>
+            </div>
           </div>
 
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl space-y-6">
