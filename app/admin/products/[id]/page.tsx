@@ -87,7 +87,6 @@ export default function EditProductPage() {
             if (data.material_config) setMaterialConfig(data.material_config);
             if (data.glb_url) setGlbPreviewUrl(data.glb_url);
             
-            // Popula as pedras (se não houver, ele inicia vazio graças ao parseStonesInfo atualizado)
             setStoneRows(parseStonesInfo(data.stones_info));
             
             setLoading(false);
@@ -133,7 +132,6 @@ export default function EditProductPage() {
         if (!formData.title || formData.title.trim() === '') return toast.error("O Título não pode ficar vazio.");
         if (!formData.price || isNaN(parseFloat(formData.price)) || parseFloat(formData.price) <= 0) return toast.error("Insira um preço válido.");
 
-        // Validação se for prototipagem e não tiver nenhum arquivo na base nem sendo enviado
         if (formData.usage === 'Prototipagem' && !deliveryFile && !externalLink && !existingUrls.stl && !existingUrls.zip) {
             return toast.error("Para Prototipagem, a peça precisa ter um Arquivo Final ou Link.");
         }
@@ -150,7 +148,6 @@ export default function EditProductPage() {
             if (video360File) finalUrls.video360 = await uploadFile('videos', video360File);
             if (videoRealFile) finalUrls.videoReal = await uploadFile('videos', videoRealFile);
 
-            // Limpa arquivos se mudou para Borracha
             if (formData.usage === 'Borracha') {
                 finalUrls.stl = null;
                 finalUrls.zip = null;
@@ -204,8 +201,12 @@ export default function EditProductPage() {
             };
 
             await Promise.all([
-                deleteOldFile(oldUrls.image, finalUrls.image, 'images'), deleteOldFile(oldUrls.stl, finalUrls.stl, 'models'),
-                deleteOldFile(oldUrls.zip, finalUrls.zip, 'models'), deleteOldFile(oldUrls.glb, finalUrls.glb, 'models')
+                deleteOldFile(oldUrls.image, finalUrls.image, 'images'), 
+                deleteOldFile(oldUrls.stl, finalUrls.stl, 'models'),
+                deleteOldFile(oldUrls.zip, finalUrls.zip, 'models'), 
+                deleteOldFile(oldUrls.glb, finalUrls.glb, 'models'),
+                deleteOldFile(oldUrls.video360, finalUrls.video360, 'videos'),
+                deleteOldFile(oldUrls.videoReal, finalUrls.videoReal, 'videos') 
             ]);
 
             toast.success("Produto atualizado com sucesso!", { id: toastId });
@@ -229,12 +230,29 @@ export default function EditProductPage() {
         if (deliveryFile) return deliveryFile.name;
         if (externalLink) return "Link cadastrado.";
         if (existingUrls.zip && existingUrls.zip.includes('drive')) return "Link Atual.";
-        if (existingUrls.zip) return "Manter ZIP atual";
-        if (existingUrls.stl) return "Manter STL atual";
+        if (existingUrls.zip) return "Trocar ZIP atual";
+        if (existingUrls.stl) return "Trocar STL atual";
         return "Nenhum arquivo.";
     }
 
-    if (loading) return <div className="p-8 text-white">Carregando dados do produto...</div>;
+    if (loading) {
+        return (
+            <div className="min-h-[80vh] w-full flex flex-col items-center justify-center">
+                <div className="relative flex flex-col items-center">
+                    {/* Brilho de fundo (Glow) */}
+                    <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full animate-pulse"></div>
+                    
+                    {/* Spinner moderno estilo Apple/WFX */}
+                    <div className="w-12 h-12 border-4 border-slate-200 dark:border-slate-800 border-t-blue-600 dark:border-t-blue-500 rounded-full animate-spin relative z-10"></div>
+                    
+                    {/* Texto pulsante com tracking largo */}
+                    <p className="mt-6 text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-[0.2em] animate-pulse relative z-10">
+                        Carregando Peça...
+                    </p>
+                </div>
+            </div>
+        );
+    }
 
     const isDeliveryDisabled = formData.usage === 'Borracha';
 
@@ -255,7 +273,7 @@ export default function EditProductPage() {
                             <div className={`relative border-2 border-dashed rounded-lg p-6 text-center group cursor-pointer transition-colors flex-1 flex flex-col items-center justify-center ${glbFile ? 'border-blue-500 bg-blue-900/10' : 'border-slate-700 hover:border-blue-500 bg-slate-950'}`}>
                                 <input type="file" accept=".glb,.gltf" onChange={(e) => { if (e.target.files && e.target.files[0]) setGlbFile(e.target.files[0]) }} className="absolute inset-0 opacity-0 cursor-pointer" />
                                 <Box size={24} className="text-slate-500 group-hover:text-blue-400 mb-2"/>
-                                <span className="text-xs font-medium truncate w-full px-2 text-slate-500 group-hover:text-blue-400">{glbFile ? glbFile.name : (existingUrls.glb ? "Manter arquivo atual" : "Substituir GLB")}</span>
+                                <span className="text-xs font-medium truncate w-full px-2 text-slate-500 group-hover:text-blue-400">{glbFile ? glbFile.name : (existingUrls.glb ? "Trocar arquivo atual" : "Substituir GLB")}</span>
                             </div>
                         </div>
 
@@ -306,6 +324,35 @@ export default function EditProductPage() {
                             </div>
                         </div>
                     </div>
+
+                    <div className="grid md:grid-cols-2 gap-6 pt-6 border-t border-slate-800">
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold uppercase text-slate-500 flex justify-between items-center">
+                                <span className="flex items-center gap-2"><Video size={14}/> Vídeo 360°</span>
+                                {existingUrls.video360 && <span className="text-green-500 text-[10px] ml-2">(JÁ POSSUI)</span>}
+                            </label>
+                            <div className={`relative border-2 border-dashed rounded-lg p-4 text-center group cursor-pointer transition-colors ${video360File ? 'border-purple-500 bg-purple-900/10' : 'border-slate-700 hover:border-purple-500 bg-slate-950'}`}>
+                                <input type="file" accept="video/*" onChange={(e) => { if (e.target.files && e.target.files[0]) setVideo360File(e.target.files[0]) }} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                <span className="text-xs text-slate-500 group-hover:text-purple-400">
+                                    {video360File ? video360File.name : (existingUrls.video360 ? "Trocar Vídeo 360°" : "Trocar Vídeo 360°")}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold uppercase text-slate-500 flex justify-between items-center">
+                                <span className="flex items-center gap-2"><Video size={14}/> Vídeo Real</span>
+                                {existingUrls.videoReal && <span className="text-green-500 text-[10px] ml-2">(JÁ POSSUI)</span>}
+                            </label>
+                            <div className={`relative border-2 border-dashed rounded-lg p-4 text-center group cursor-pointer transition-colors ${videoRealFile ? 'border-pink-500 bg-pink-900/10' : 'border-slate-700 hover:border-pink-500 bg-slate-950'}`}>
+                                <input type="file" accept="video/*" onChange={(e) => { if (e.target.files && e.target.files[0]) setVideoRealFile(e.target.files[0]) }} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                <span className="text-xs text-slate-500 group-hover:text-pink-400">
+                                    {videoRealFile ? videoRealFile.name : (existingUrls.videoReal ? "Trocar Vídeo Real" : "Trocar Vídeo Real")}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
 
                 <div className="grid lg:grid-cols-2 gap-8">
@@ -318,12 +365,10 @@ export default function EditProductPage() {
                             <div><label className="block text-sm font-medium text-slate-400 mb-1">Categoria</label><select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-blue-500 outline-none">{['Anéis', 'Berloques', 'Brincos', 'Escapulários', 'Gargantilhas', 'Pingentes', 'Pulseiras', 'Relicários', 'Acessórios'].map(c => <option key={c} value={c}>{c}</option>)}</select></div>
                         </div>
                         
-                        {/* NOVO: CAMPO DE TAMANHO */}
                         <div><label className="block text-sm font-medium text-slate-400 mb-1 flex items-center gap-2"><Ruler size={16}/> Tamanho / Dimensões</label><input type="text" value={formData.size} onChange={e => setFormData({...formData, size: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-blue-500 outline-none placeholder:text-slate-600" placeholder="Ex: Aro 18 ou 20x20mm" /></div>
                         
                         <div><label className="block text-sm font-medium text-slate-400 mb-1">Descrição</label><textarea rows={4} value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-blue-500 outline-none" /></div>
                         
-                        {/* NOVO: RADIO BUTTONS PARA FINALIDADE */}
                         <div>
                             <label className="block text-sm font-medium text-slate-400 mb-1">Finalidade</label>
                             <div className="flex gap-4">
@@ -347,13 +392,11 @@ export default function EditProductPage() {
                         <h2 className="text-xl font-bold flex items-center gap-2"><Calculator className="text-amber-500" /> Calculadora de Peso</h2>
                         <div className="bg-slate-950 p-4 rounded-lg border border-slate-800"><label className="text-sm font-bold text-blue-400 mb-2 block flex items-center gap-2"><Scale size={16} /> Volume (cm³)</label><input type="number" step="0.001" value={formData.volume} onChange={e => setFormData({ ...formData, volume: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white font-mono focus:border-blue-500 outline-none" placeholder="Ex: 0.142" /></div>
 
-                        {/* NOVO: LISTA DE PEDRAS */}
                         <div className="bg-slate-950 p-4 rounded-lg border border-slate-800"><label className="text-sm font-bold text-purple-400 mb-4 block flex items-center gap-2"><Gem size={16}/> Pedras</label>
                             <div className="flex flex-col gap-3">{stoneRows.map((row, index) => (<div key={index} className="grid grid-cols-12 gap-2 items-end relative group"><div className="col-span-3"><label className="text-[10px] text-slate-400 block mb-1">Qtd</label><input type="number" value={row.qty} onChange={(e) => updateStoneRow(index, 'qty', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white text-xs placeholder:text-slate-600 focus:border-blue-500 outline-none" placeholder="Ex: 10" /></div><div className="col-span-5"><label className="text-[10px] text-slate-400 block mb-1">Descrição</label><input type="text" value={row.name} onChange={(e) => updateStoneRow(index, 'name', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white text-xs placeholder:text-slate-600 focus:border-blue-500 outline-none" placeholder="Ex: Zircônia 1mm" /></div><div className="col-span-3"><label className="text-[10px] text-slate-400 block mb-1 text-right">Peso (g)</label><input type="number" step="0.001" value={row.weight} onChange={(e) => updateStoneRow(index, 'weight', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white text-xs text-right font-bold text-amber-200 placeholder:text-slate-600 focus:border-blue-500 outline-none" placeholder="Ex: 0.002" /></div><div className="col-span-1 flex justify-center pb-2">{stoneRows.length > 1 && (<button type="button" onClick={() => removeStoneRow(index)} className="text-slate-600 hover:text-red-500"><Trash2 size={16} /></button>)}</div></div>))}</div>
                             <button type="button" onClick={addStoneRow} className="mt-4 flex items-center gap-2 text-xs font-bold text-blue-400 hover:text-blue-300"><Plus size={14} /> Adicionar Pedra</button>
                         </div>
 
-                        {/* NOVO: ESTIMATIVA DE PESO */}
                         <div className="space-y-3 pt-2">
                             <p className="text-xs font-bold text-slate-500 uppercase">Estimativa</p>
                             <div className="grid grid-cols-2 gap-3">
