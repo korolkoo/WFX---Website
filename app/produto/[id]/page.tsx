@@ -5,7 +5,7 @@ import { createClient } from '@/utils/supabase/client';
 import { useTheme } from "next-themes";
 import { Moon, Sun, ShoppingBag, Instagram, Mail, Phone, Code, ChevronLeft, ChevronRight, Maximize2, AlertCircle, Menu, X, Ruler, Gem, Layers, Scale, User, AlertTriangle, MessageCircle, Droplet, Share2, Check } from "lucide-react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Stage, useGLTF, Loader, Environment } from "@react-three/drei";
+import { OrbitControls, useGLTF, Loader, Environment } from "@react-three/drei";
 import * as THREE from 'three';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -95,9 +95,6 @@ function ModelViewer({ url, config }: { url: string, config?: any }) {
       }
     });
 
-    // ==========================================
-    // MÁGICA: NORMALIZAÇÃO MATEMÁTICA IGUAL DA HOME
-    // ==========================================
     clonedScene.scale.set(1, 1, 1);
     clonedScene.position.set(0, 0, 0);
 
@@ -107,7 +104,6 @@ function ModelViewer({ url, config }: { url: string, config?: any }) {
     const center = new THREE.Vector3();
     box.getCenter(center);
 
-    // Ajuste o TARGET_SIZE se quiser mais ou menos zoom (coloquei 22 para chegar mais perto)
     const TARGET_SIZE = 22; 
     const maxDim = Math.max(size.x, size.y, size.z);
     
@@ -173,7 +169,7 @@ function ShareButton({ productTitle }: { productTitle: string }) {
       </button>
 
       {showToast && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-gray-900 dark:bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 z-[9999] animate-in slide-in-from-bottom-5 fade-in duration-300 border border-gray-700">
+        <div className="fixed bottom-20 lg:bottom-10 left-1/2 -translate-x-1/2 bg-gray-900 dark:bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 z-[9999] animate-in slide-in-from-bottom-5 fade-in duration-300 border border-gray-700">
           <div className="bg-green-500/20 p-1 rounded-full"><Check size={16} className="text-green-400" /></div>
           <span className="text-sm font-bold tracking-wide whitespace-nowrap">Link copiado para a área de transferência!</span>
         </div>
@@ -313,14 +309,14 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const viewerUrl = product.glb_url;
 
   return (
-    <div className="min-h-screen bg-wfx-bg text-wfx-text font-sans transition-colors pb-0 flex flex-col">
+    <div className="min-h-screen bg-wfx-bg text-wfx-text font-sans transition-colors pb-0 flex flex-col relative">
       <CartSidebar />
 
       {/* --- HEADER --- */}
-      <header className="border-b border-wfx-border sticky top-0 bg-wfx-bg/80 backdrop-blur-md z-50 h-20 shrink-0">
+      <header className="border-b border-wfx-border sticky top-0 bg-wfx-bg/80 backdrop-blur-md z-50 h-16 lg:h-20 shrink-0">
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-full flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 cursor-pointer">
-            <Image src="/logo.png" alt="WFX Logo" width={100} height={40} priority className="object-contain" />
+            <Image src="/logo.png" alt="WFX Logo" width={100} height={40} priority className="object-contain w-[75px] lg:w-[100px] h-auto" />
           </Link>
           <nav className="hidden md:flex gap-8 text-sm font-medium text-wfx-muted">
             <Link href="/" className="hover:text-wfx-primary transition-colors">COLEÇÃO 2026</Link>
@@ -329,16 +325,25 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             <a href="#sobre" onClick={handleSobreClick} className="hover:text-wfx-primary transition-colors">SOBRE</a>
           </nav>
           <div className="flex items-center gap-2 md:gap-4">
-            <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="p-2 rounded-full hover:bg-wfx-card transition-all text-wfx-muted hover:text-wfx-primary">{theme === "dark" ? <Moon size={20} /> : <Sun size={20} />}</button>
-            <Link href="/perfil" prefetch={false} className="p-2 rounded-full hover:bg-wfx-card transition-all text-wfx-muted hover:text-wfx-primary" title="Minha Conta">
-              <User size={20} />
+            <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="p-1.5 lg:p-2 rounded-full hover:bg-wfx-card transition-all text-wfx-muted hover:text-wfx-primary">
+              {theme === "dark" ? <Moon className="w-[18px] h-[18px] lg:w-5 lg:h-5" /> : <Sun className="w-[18px] h-[18px] lg:w-5 lg:h-5" />}
+            </button>
+            <Link href="/perfil" prefetch={false} className="p-1.5 lg:p-2 rounded-full hover:bg-wfx-card transition-all text-wfx-muted hover:text-wfx-primary" title="Minha Conta">
+              <User className="w-[18px] h-[18px] lg:w-5 lg:h-5" />
             </Link>
-            <button onClick={toggleCart} className="flex items-center gap-2 px-3 md:px-4 py-2 bg-wfx-primary text-white hover:opacity-90 transition-all text-xs md:text-sm font-bold uppercase tracking-wide rounded-sm shadow-lg shadow-blue-500/20"><ShoppingBag size={16} /><span>Carrinho ({totalItems()})</span></button>
-            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden p-2 text-wfx-text hover:bg-wfx-card rounded-md">{mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}</button>
+            <button onClick={toggleCart} className="flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-4 py-1.5 lg:py-2 bg-wfx-primary text-white hover:opacity-90 transition-all text-[10px] lg:text-sm font-bold uppercase tracking-wide rounded-sm shadow-lg shadow-blue-500/20 ml-1 lg:ml-0">
+              <ShoppingBag className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+              <span className="hidden lg:inline">Carrinho ({totalItems()})</span>
+              <span className="lg:hidden">CARRINHO ({totalItems()})</span>
+            </button>
+            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden p-1.5 text-wfx-text hover:bg-wfx-card rounded-md z-50 relative ml-1">
+              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
           </div>
         </div>
+
         {mobileMenuOpen && (
-          <div className="md:hidden absolute top-20 left-0 w-full bg-wfx-bg border-b border-wfx-border shadow-2xl animate-in slide-in-from-top-5 z-40 text-wfx-text">
+          <div className="md:hidden absolute top-[100%] left-0 w-full bg-wfx-bg border-b border-wfx-border shadow-2xl animate-in slide-in-from-top-5 z-40 text-wfx-text">
             <nav className="flex flex-col p-6 space-y-4 text-center font-bold text-lg">
               <Link href="/" onClick={() => setMobileMenuOpen(false)} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">COLEÇÃO 2026</Link>
               <Link href="/?action=lancamentos" onClick={() => setMobileMenuOpen(false)} className="py-2 hover:text-wfx-primary border-b border-wfx-border/50">LANÇAMENTOS</Link>
@@ -349,18 +354,20 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
         )}
       </header>
 
-      {/* --- ÁREA PRINCIPAL (MAIN) --- */}
-      <main className="flex-1 min-h-[calc(100vh-80px)] flex flex-col justify-center max-w-7xl mx-auto px-6 py-6 w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch w-full">
+      {/* --- ÁREA PRINCIPAL (MAIN) --- pb-28 no mobile para compensar a barra flutuante */}
+      <main className="flex-1 min-h-[calc(100vh-80px)] flex flex-col justify-center max-w-7xl mx-auto px-4 lg:px-6 py-4 lg:py-6 w-full pb-28 lg:pb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-stretch w-full">
 
           {/* === COLUNA ESQUERDA === */}
           <div className="lg:col-span-8 flex flex-col gap-6 h-full">
             <div className="flex flex-col gap-4 flex-1 min-h-0">
-              <div ref={mediaContainerRef} className={`relative flex-1 min-h-[550px] lg:min-h-[300px] w-full bg-wfx-bg border border-wfx-border rounded-lg overflow-hidden shadow-inner group flex items-center justify-center transition-all ${isFullscreen ? 'fixed inset-0 z-[100] h-screen border-none rounded-none' : ''}`}>
-                <div className="absolute inset-0">
+              
+              {/* O CONTAINER 3D: Aumentei as constraints de altura no mobile */}
+              <div ref={mediaContainerRef} className={`relative flex-1 h-[60vh] min-h-[400px] max-h-[550px] lg:h-auto lg:min-h-[550px] lg:max-h-none w-full bg-wfx-bg border border-wfx-border rounded-xl lg:rounded-lg overflow-hidden shadow-inner group flex items-center justify-center transition-all ${isFullscreen ? 'fixed inset-0 z-[100] h-screen border-none rounded-none max-h-none' : ''}`}>
+                <div className="absolute inset-0 w-full h-full flex items-center justify-center">
                   {currentMedia.type === '3d' && viewerUrl && (
                     <>
-                      <Canvas dpr={[1, 2]} camera={{ position: [25, 25, 25], fov: 40 }} className="h-full w-full cursor-grab active:cursor-grabbing" shadows>
+                      <Canvas dpr={[1, 2]} camera={{ position: [25, 25, 25], fov: 40 }} className="h-full w-full cursor-grab active:cursor-grabbing block" shadows>
                         <Environment preset="city" background={false} blur={0.8} />
                         <ambientLight intensity={0.5} />
                         <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} castShadow color="#ffffff" />
@@ -372,15 +379,15 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                         <OrbitControls autoRotate autoRotateSpeed={2} makeDefault />
                       </Canvas>
                       <Loader dataInterpolation={(p) => `Carregando ${p.toFixed(0)}%`} containerStyles={{ background: 'transparent' }} innerStyles={{ backgroundColor: 'rgba(0,0,0,0.1)', width: '200px' }} barStyles={{ backgroundColor: '#0044cc' }} dataStyles={{ color: '#0044cc', fontSize: '12px', fontWeight: 'bold' }} />
-                      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 z-20 pointer-events-none text-center w-max max-w-[90%]">
-                        <AlertCircle size={14} className="text-yellow-400 shrink-0" />
-                        <span className="text-white/90 text-[10px] md:text-xs font-medium leading-tight">Qualidade visual reduzida para web.</span>
+                      <div className="absolute bottom-4 lg:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 lg:px-4 lg:py-2 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 z-20 pointer-events-none text-center w-max max-w-[90%]">
+                        <AlertCircle className="w-3 h-3 lg:w-3.5 lg:h-3.5 text-yellow-400 shrink-0" />
+                        <span className="text-white/90 text-[9px] lg:text-xs font-medium leading-tight">Qualidade visual reduzida para web.</span>
                       </div>
                     </>
                   )}
-                  {currentMedia.type === 'video360' && (<video src={currentMedia.url} className="w-full h-full object-contain bg-black" autoPlay loop muted playsInline controls />)}
-                  {currentMedia.type === 'videoReal' && (<video src={currentMedia.url} className="w-full h-full object-contain bg-black" autoPlay loop muted playsInline controls />)}
-                  {currentMedia.type === 'image' && (<img src={product.image_url} alt={product.title} className="w-full h-full object-contain p-8" />)}
+                  {currentMedia.type === 'video360' && (<video src={currentMedia.url} className="w-full h-full object-contain bg-black block" autoPlay loop muted playsInline controls />)}
+                  {currentMedia.type === 'videoReal' && (<video src={currentMedia.url} className="w-full h-full object-contain bg-black block" autoPlay loop muted playsInline controls />)}
+                  {currentMedia.type === 'image' && (<img src={product.image_url} alt={product.title} className="w-full h-full object-contain p-8 block" />)}
                 </div>
 
                 <button onClick={toggleFullscreen} className="absolute top-4 right-4 bg-wfx-card/80 hover:bg-wfx-primary hover:text-white p-2 rounded-lg backdrop-blur-sm transition-all shadow-lg z-30"><Maximize2 size={20} /></button>
@@ -395,14 +402,15 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 )}
               </div>
 
-              <div className="flex justify-center gap-2 w-full">
+              <div className="flex justify-center gap-2 w-full mt-2 lg:mt-0">
                 {availableMedia.map((media, idx) => (
                   <button key={idx} onClick={() => setMediaIndex(idx)} className={`h-1.5 rounded-full transition-all ${mediaIndex === idx ? 'w-8 bg-wfx-primary' : 'w-2 bg-slate-300 dark:bg-slate-700 hover:bg-wfx-primary/50'}`} />
                 ))}
               </div>
             </div>
 
-            <div className="bg-wfx-card border border-wfx-border rounded-lg p-6 text-center shadow-sm shrink-0">
+            {/* CONTATO (DESKTOP) - Visível apenas em computadores, intacto */}
+            <div className="hidden lg:block bg-wfx-card border border-wfx-border rounded-lg p-6 text-center shadow-sm shrink-0">
               <p className="font-bold text-sm text-wfx-primary mb-2">Não gostou de algo na peça? Tem alguma dúvida?</p>
               <p className="text-sm text-wfx-muted mb-4">Entre em contato comigo para ajustes personalizados antes da compra:</p>
               <div className="flex justify-center gap-6 text-sm font-bold text-wfx-text">
@@ -413,18 +421,20 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           </div>
 
           {/* === COLUNA DIREITA === */}
-          <div className="lg:col-span-4 h-full flex flex-col">
+          <div className="lg:col-span-4 h-full flex flex-col gap-6 lg:gap-0">
             <div className="bg-wfx-card border border-wfx-border p-5 rounded-lg shadow-xl flex flex-col h-full relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
 
               <div>
                 <div className="pb-3 border-b border-wfx-border/50">
                   <span className="text-xs text-wfx-primary font-bold uppercase tracking-widest mb-1 block">{product.category}</span>
-                  <div className="flex justify-between items-start gap-4">
-                    <h1 className="text-2xl font-extrabold text-wfx-text leading-tight flex-1 min-w-0 break-words">
+                  
+                  {/* Título e Preço: Mantidos um abaixo do outro conforme solicitado anteriormente */}
+                  <div className="flex flex-col gap-3 mt-1">
+                    <h1 className="text-2xl lg:text-3xl font-extrabold text-wfx-text leading-tight break-words">
                       {product.title}
                     </h1>
-                    <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                    <div className="flex items-center gap-3 shrink-0">
                       <div className="flex items-center gap-2 text-slate-300 dark:text-slate-700">
                         <ShareButton productTitle={product.title} />
                         <span className="text-3xl font-light pb-1">|</span>
@@ -434,9 +444,11 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                       </div>
                     </div>
                   </div>
-                  <p className="text-sm text-wfx-muted leading-relaxed mt-2 mb-3">{product.description || "Sem descrição adicional."}</p>
+
+                  <p className="text-sm text-wfx-muted leading-relaxed mt-4 mb-3">{product.description || "Sem descrição adicional."}</p>
                   <div className="flex gap-2 flex-wrap">
-                    {product.usage === 'Prototipagem' && (<div className="flex items-center gap-2 px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded text-amber-600 text-[10px] font-bold uppercase"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Prototipagem</div>)}
+                    {/* Alterado para Fun. Direta na interface visual */}
+                    {product.usage === 'Prototipagem' && (<div className="flex items-center gap-2 px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded text-amber-600 text-[10px] font-bold uppercase"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Fun. Direta</div>)}
                     {product.usage === 'Borracha' && (<div className="flex items-center gap-2 px-2 py-1 bg-slate-500/10 border border-slate-500/20 rounded text-slate-600 text-[10px] font-bold uppercase"><span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span> Molde Borracha</div>)}
                     <div className="flex items-center gap-2 px-2 py-1 bg-blue-500/10 border border-blue-500/20 rounded text-blue-600 text-[10px] font-bold uppercase"><Code size={10} /> STL</div>
                   </div>
@@ -547,10 +559,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                     </div>
                   )
                 ) : (
-                  // --- LAYOUT PARA PROTOTIPAGEM (100% TRAVADO) ---
                   <div className="flex flex-col space-y-4">
-                    
-                    {/* SLOT 1: AVISO DE PROMOÇÃO (Sempre renderizado, mas apaga se estiver carregando) */}
                     <div className={`p-2.5 rounded-md text-[10px] font-bold text-center border transition-all duration-300 bg-emerald-500/10 border-emerald-500/30 text-emerald-500 ${
                       (!isCheckingPurchase && !hasPurchased && !cartItems.some(item => item.id === product.id))
                         ? 'opacity-100'
@@ -562,7 +571,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                       }
                     </div>
 
-                    {/* SLOT 2: BOTÃO PRINCIPAL (Sempre com h-[56px]) */}
                     {isCheckingPurchase ? (
                       <button disabled className="w-full h-[56px] bg-wfx-muted/10 text-wfx-muted font-bold rounded-lg flex items-center justify-center gap-3 cursor-wait animate-pulse">
                         <div className="w-5 h-5 border-2 border-wfx-muted border-t-transparent rounded-full animate-spin"></div>
@@ -591,7 +599,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                       </button>
                     )}
 
-                    {/* SLOT 3: TEXTO VERDE INFERIOR (Sempre renderizado) */}
                     <div className={`flex items-center justify-center gap-2 text-[10px] text-wfx-muted font-medium transition-all duration-300 ${
                       (!isCheckingPurchase && !hasPurchased && !cartItems.some(item => item.id === product.id))
                         ? 'opacity-100'
@@ -604,12 +611,58 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 )}
               </div>
             </div>
+
+            {/* CONTATO (MOBILE) - Aparece apenas no fundo em telemóveis */}
+            <div className="lg:hidden bg-wfx-card border border-wfx-border rounded-lg p-6 text-center shadow-sm shrink-0 mt-2">
+              <p className="font-bold text-sm text-wfx-primary mb-2">Não gostou de algo na peça? Tem alguma dúvida?</p>
+              <p className="text-sm text-wfx-muted mb-4">Entre em contato comigo para ajustes personalizados antes da compra:</p>
+              <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-6 text-sm font-bold text-wfx-text">
+                <a href="https://instagram.com/wfx.joias" target="_blank" className="hover:text-wfx-primary transition-colors flex items-center justify-center gap-2 px-4 py-3 sm:py-2 bg-wfx-bg rounded border border-wfx-border/50"><Instagram size={16} /> @wfx.joias</a>
+                <a href="https://wa.me/5554996704599" target="_blank" className="hover:text-wfx-primary transition-colors flex items-center justify-center gap-2 px-4 py-3 sm:py-2 bg-wfx-bg rounded border border-wfx-border/50"><Phone size={16} /> +55 (54) 99670-4599</a>
+              </div>
+            </div>
+
           </div>
+
         </div>
       </main>
 
+      {/* --- STICKY FOOTER MOBILE (Barra Flutuante "Comprar") --- */}
+      <div className="lg:hidden fixed bottom-0 left-0 w-full bg-wfx-card/85 backdrop-blur-xl border-t border-wfx-border p-3 z-40 pb-safe shadow-[0_-10px_20px_rgba(0,0,0,0.3)]">
+        {isCheckingPurchase ? (
+          <button disabled className="w-full h-12 bg-wfx-muted/10 text-wfx-muted font-bold rounded-lg flex items-center justify-center gap-2 cursor-wait animate-pulse text-xs">
+            <div className="w-4 h-4 border-2 border-wfx-muted border-t-transparent rounded-full animate-spin"></div>
+            CARREGANDO...
+          </button>
+        ) : product.usage === 'Borracha' ? (
+          hasPurchased ? (
+            <Link href="/perfil" className="w-full h-12 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg shadow-lg flex items-center justify-center gap-2 text-xs transition-all active:scale-[0.98]">
+              <Check size={16} /> JÁ POSSUI ESTE ARQUIVO
+            </Link>
+          ) : (
+            <Link href="/atendimento" className="w-full h-12 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg shadow-lg flex items-center justify-center gap-2 text-xs transition-all active:scale-[0.98]">
+              <MessageCircle size={16} /> CONSULTAR ESPECIALISTA
+            </Link>
+          )
+        ) : (
+          hasPurchased ? (
+            <Link href="/perfil" className="w-full h-12 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg shadow-lg flex items-center justify-center gap-2 text-xs transition-all active:scale-[0.98]">
+              <Check size={16} /> JÁ POSSUI ESTE ARQUIVO
+            </Link>
+          ) : cartItems.some(item => item.id === product.id) ? (
+            <button onClick={toggleCart} className="w-full h-12 bg-blue-600/20 text-blue-500 border border-blue-500/50 font-bold rounded-lg flex items-center justify-center gap-2 text-xs transition-all">
+              <Check size={16} /> NO CARRINHO
+            </button>
+          ) : (
+            <button onClick={() => addItem(product)} className="w-full h-12 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 text-xs transition-all active:scale-[0.98]">
+              <ShoppingBag size={16} /> ADICIONAR AO CARRINHO
+            </button>
+          )
+        )}
+      </div>
+
       {/* FOOTER */}
-      <footer id="sobre" className="relative bg-wfx-bg text-wfx-text border-t border-wfx-text/10 dark:border-slate-800/50 py-10 transition-colors duration-150 ease-out text-center md:text-left mt-10">
+      <footer id="sobre" className="relative bg-wfx-bg text-wfx-text border-t border-wfx-text/10 dark:border-slate-800/50 py-10 transition-colors duration-150 ease-out text-center md:text-left mt-10 mb-14 lg:mb-0">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-4">
           <div className="md:col-span-4 space-y-4">
             <div className="flex items-center justify-center md:justify-start gap-2">
