@@ -271,7 +271,7 @@ export default function EditProductPage() {
                         <div className="flex flex-col h-full">
                             <label className="text-xs font-bold uppercase text-slate-500 mb-2 shrink-0 flex justify-between">Arquivo GLB{existingUrls.glb && <span className="text-green-500 text-[10px] ml-2">(JÁ POSSUI)</span>}</label>
                             <div className={`relative border-2 border-dashed rounded-lg p-6 text-center group cursor-pointer transition-colors flex-1 flex flex-col items-center justify-center ${glbFile ? 'border-blue-500 bg-blue-900/10' : 'border-slate-700 hover:border-blue-500 bg-slate-950'}`}>
-                                <input type="file" accept=".glb,.gltf" onChange={(e) => { if (e.target.files && e.target.files[0]) setGlbFile(e.target.files[0]) }} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                <input type="file" accept=".glb,.gltf" onChange={(e) => { if (e.target.files && e.target.files[0]) { setGlbFile(e.target.files[0]); setGlbPreviewUrl(URL.createObjectURL(e.target.files[0])); } }} className="absolute inset-0 opacity-0 cursor-pointer" />
                                 <Box size={24} className="text-slate-500 group-hover:text-blue-400 mb-2"/>
                                 <span className="text-xs font-medium truncate w-full px-2 text-slate-500 group-hover:text-blue-400">{glbFile ? glbFile.name : (existingUrls.glb ? "Trocar arquivo atual" : "Substituir GLB")}</span>
                             </div>
@@ -307,7 +307,7 @@ export default function EditProductPage() {
                                         placeholder="Link do Google Drive (Anéis)" 
                                         value={externalLink} 
                                         onChange={(e) => { setExternalLink(e.target.value); setDeliveryFile(null); }} 
-                                        className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2.5 pl-9 pr-3 text-xs text-white focus:border-blue-500 outline-none placeholder:text-slate-600 disabled:cursor-not-allowed" 
+                                        className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2.5 pl-9 pr-3 text-xs text-white focus:border-blue-500 outline-none placeholder:text-slate-600 disabled:cursor-not-allowed" 
                                         disabled={isDeliveryDisabled || !!deliveryFile} 
                                     />
                                 </div>
@@ -353,6 +353,12 @@ export default function EditProductPage() {
                         </div>
                     </div>
 
+                    {glbPreviewUrl && (
+                        <div className="mt-8 animate-in fade-in slide-in-from-bottom-4">
+                            <div className="mb-2 flex items-center gap-2"><h3 className="text-sm font-bold text-blue-400 uppercase">Pintura Digital</h3></div>
+                            <ModelConfigurator fileUrl={glbPreviewUrl} initialConfig={materialConfig} onConfigChange={setMaterialConfig} />
+                        </div>
+                    )}
                 </div>
 
                 <div className="grid lg:grid-cols-2 gap-8">
@@ -406,7 +412,6 @@ export default function EditProductPage() {
                                 <div className="bg-amber-500/10 p-3 rounded border border-amber-400/50 flex justify-between items-center"><span className="text-xs text-amber-400 font-bold uppercase">Ouro 18k</span><span className="font-mono font-bold text-amber-400">{calculationData.gold18k.toFixed(2)} g</span></div>
                             </div>
                         </div>
-
                     </div>
                 </div>
 
