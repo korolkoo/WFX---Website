@@ -3,12 +3,13 @@ import Stripe from "stripe";
 import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-12-15.clover" as any, 
+  apiVersion: "2023-10-16" as any, 
 });
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function POST(request: Request) {
   try {
@@ -18,19 +19,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Carrinho vazio" }, { status: 400 });
     }
 
-    // =================================================================
-    // TRAVA 2: VERIFICAÇÃO DE SEGURANÇA BACKEND (Bloqueio Definitivo)
-    // =================================================================
+    const itemIds = items.map((item: any) => item.id);
+
     if (userId) {
-      const itemIds = items.map((item: any) => item.id);
-      
-      const { data: existingPurchases, error } = await supabase
+      const { data: existingPurchases, error } = await supabaseAdmin
         .from('purchases')
         .select('product_id')
         .eq('user_id', userId)
         .in('product_id', itemIds);
 
-      // Se encontrar alguma peça que ele já comprou, cancela o checkout!
       if (existingPurchases && existingPurchases.length > 0) {
         return NextResponse.json({ 
           error: "DUPLICATED_ITEMS",
@@ -39,14 +36,37 @@ export async function POST(request: Request) {
       }
     }
 
-    // ==========================================
-    // 1. RECALCULA O DESCONTO NO BACKEND 
-    // ==========================================
+    // =================================================================
+    // TRAVA 3: RECALCULAR PREÇOS NO SERVIDOR (BLINDAGEM CONTRA FRAUDE)
+    // =================================================================
+    // Busca os produtos oficiais no banco de dados com base nos IDs
+    const { data: officialProducts, error: productsError } = await supabaseAdmin
+        .from('products')
+        .select('id, title, price, image_url, file_url, zip_url')
+        .in('id', itemIds);
+
+    if (productsError || !officialProducts || officialProducts.length === 0) {
+        return NextResponse.json({ error: "Produtos não encontrados no sistema." }, { status: 404 });
+    }
+
+    // Mapeia os produtos oficiais encontrados para um dicionário para busca rápida
+    const officialProductsMap = officialProducts.reduce((acc, product) => {
+        acc[product.id] = product;
+        return acc;
+    }, {} as Record<string, any>);
+
+    // RECALCULA O DESCONTO NO BACKEND (COM PREÇOS OFICIAIS)
     const prices: number[] = [];
-    items.forEach((item: any) => {
-      const qty = item.quantity || 1;
-      for (let i = 0; i < qty; i++) {
-        prices.push(item.price || 0);
+    
+    // Varre os itens que o frontend pediu e cruza com os dados oficiais
+    items.forEach((itemRequest: any) => {
+      const officialProduct = officialProductsMap[itemRequest.id];
+      
+      if (officialProduct) {
+          const qty = itemRequest.quantity || 1;
+          for (let i = 0; i < qty; i++) {
+            prices.push(officialProduct.price || 0);
+          }
       }
     });
 
@@ -58,37 +78,38 @@ export async function POST(request: Request) {
       discountTotal += prices[i];
     }
 
-    // ==========================================
-    // 2. MONTA OS ITENS PARA O STRIPE
-    // ==========================================
-    const lineItems = items.map((item: any) => {
-      const hasFullImageUrl = item.image_url && item.image_url.startsWith('http');
+    const lineItems = items.map((itemRequest: any) => {
+      const officialProduct = officialProductsMap[itemRequest.id];
+      
+      if (!officialProduct) return null;
+
+      const hasFullImageUrl = officialProduct.image_url && officialProduct.image_url.startsWith('http');
       
       return {
         price_data: {
           currency: "brl",
           product_data: {
-            name: item.title || "Produto WFX",
-            images: hasFullImageUrl ? [item.image_url] : [], 
+            name: officialProduct.title || "Produto WFX",
+            images: hasFullImageUrl ? [officialProduct.image_url] : [], 
             metadata: {
-              db_id: item.id ? item.id.toString() : '',
-              file_url: item.file_url || '',
-              zip_url: item.zip_url || ''
+              db_id: officialProduct.id ? officialProduct.id.toString() : '',
+              file_url: officialProduct.file_url || '',
+              zip_url: officialProduct.zip_url || ''
             },
           },
-          unit_amount: Math.round((item.price || 0) * 100), 
+          unit_amount: Math.round((officialProduct.price || 0) * 100),
         },
-        quantity: 1, 
+        quantity: itemRequest.quantity || 1, 
       };
-    });
+    }).filter((item:any) => item !== null);
 
-    // ==========================================
-    // 3. CRIA O CUPOM DO STRIPE SE HOUVER DESCONTO
-    // ==========================================
+    if (lineItems.length === 0) {
+         return NextResponse.json({ error: "Nenhum item válido no carrinho." }, { status: 400 });
+    }
+
     const stripeDiscounts = [];
     
     if (discountTotal > 0) {
-      // Cria um cupom dinâmico e descartável direto no Stripe!
       const coupon = await stripe.coupons.create({
         amount_off: Math.round(discountTotal * 100), 
         currency: 'brl',
@@ -99,12 +120,9 @@ export async function POST(request: Request) {
       stripeDiscounts.push({ coupon: coupon.id });
     }
 
-    // ==========================================
-    // 4. GERA A SESSÃO DE CHECKOUT
-    // ==========================================
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"], 
-      line_items: lineItems,
+      payment_method_types: ["card"],
+      line_items: lineItems as Stripe.Checkout.SessionCreateParams.LineItem[],
       mode: "payment",
       discounts: stripeDiscounts.length > 0 ? stripeDiscounts : undefined, 
       metadata: {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/utils/supabase/server';
 import { Resend } from 'resend';
 import { getEmailTemplate } from '@/lib/emailTemplate';
 
@@ -10,8 +11,25 @@ const supabaseAdmin = createClient(
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// E-mails autorizados a fazer envios manuais
+const ADMIN_EMAILS = ['korolkoyuri@gmail.com', 'wfxjoias@gmail.com'];
+
 export async function POST(req: Request) {
     try {
+        // ==============================================
+        // BARREIRA DE SEGURANÇA
+        // ==============================================
+        const supabase = await createServerClient();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+        if (authError || !user) {
+            return NextResponse.json({ error: 'Não autenticado. Faça login primeiro.' }, { status: 401 });
+        }
+
+        if (!user.email || !ADMIN_EMAILS.includes(user.email)) {
+            return NextResponse.json({ error: 'Acesso negado. Apenas administradores podem fazer envios manuais.' }, { status: 403 });
+        }
+
         const body = await req.json();
         const { email, productId, notes, customFileUrl } = body;
 
@@ -40,12 +58,8 @@ export async function POST(req: Request) {
 
         if (dbError) throw dbError;
 
-        // ==============================================
-        // 4. GERA O LINK (SUPABASE OU DRIVE)
-        // ==============================================
-        let finalDownloadUrl = customFileUrl; // Assumimos que é o Drive por padrão
+        let finalDownloadUrl = customFileUrl; 
 
-        // Se for uma URL do nosso próprio banco, geramos o link temporário limpo
         if (customFileUrl.includes('/models/')) {
             const path = customFileUrl.split('/models/')[1];
             const extension = customFileUrl.split('.').pop() || 'stl';
