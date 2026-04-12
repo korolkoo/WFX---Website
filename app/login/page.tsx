@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { AlertCircle, Moon, Sun, ArrowRight, CheckCircle2, KeyRound, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
@@ -22,7 +22,7 @@ const getURL = () => {
   return 'https://wfxjoias.com/';
 };
 
-export default function LoginPage() {
+function LoginContent() {
   // Adicionei o estado 'forgot'
   const [view, setView] = useState<'login' | 'signup' | 'forgot'>('login');
   const [email, setEmail] = useState('');
@@ -35,16 +35,19 @@ export default function LoginPage() {
 
 
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('next') === 'checkout' ? '/checkout' : '/';
   const supabase = createClient();
   const { theme, setTheme } = useTheme();
 
   useEffect(() => setMounted(true), []);
 
   const handleGoogleLogin = async () => {
+    const next = searchParams.get('next') === 'checkout' ? '/checkout' : '/perfil';
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${getURL()}auth/callback?next=/perfil`,
+        redirectTo: `${getURL()}auth/callback?next=${encodeURIComponent(next)}`,
         queryParams: { access_type: 'offline', prompt: 'consent' },
       }
     });
@@ -91,7 +94,7 @@ export default function LoginPage() {
         if (profile?.role === 'admin') {
           router.push('/admin');
         } else {
-          router.push('/');
+          router.push(redirectTo);
         }
         router.refresh();
       }
@@ -277,5 +280,17 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 dark:bg-[#020617] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

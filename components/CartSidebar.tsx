@@ -14,14 +14,14 @@ export default function CartSidebar() {
 
     const handleCheckout = async () => {
         try {
-            setIsCheckingOut(true); 
-            
+            setIsCheckingOut(true);
+
             const supabase = createClient();
             const { data: { user } } = await supabase.auth.getUser();
 
             if (!user) {
                 toggleCart();
-                router.push('/login');
+                router.push('/login?next=checkout');
                 setIsCheckingOut(false);
                 return;
             }
@@ -30,7 +30,7 @@ export default function CartSidebar() {
             // TRAVA 1: VERIFICAÇÃO DE COMPRAS REPETIDAS (COM AVISO BONITO)
             // =================================================================
             const cartItemIds = items.map(item => item.id);
-            const { data: existingPurchases, error: purchaseError } = await supabase
+            const { data: existingPurchases } = await supabase
                 .from('purchases')
                 .select('product_id')
                 .eq('user_id', user.id)
@@ -39,47 +39,28 @@ export default function CartSidebar() {
             if (existingPurchases && existingPurchases.length > 0) {
                 const ownedIds = existingPurchases.map(p => p.product_id);
                 ownedIds.forEach(id => removeItem(id));
-                
+
                 toast.error(
-                  `Você já possui ${ownedIds.length} peça(s) do carrinho. Elas foram removidas para evitar pagamento duplicado!`, 
-                  { 
-                    icon: '🗑️',
-                    duration: 5000,
-                    style: {
-                      background: '#1e293b',
-                      color: '#fff',
-                      border: '1px solid #334155'
+                    `Você já possui ${ownedIds.length} peça(s) do carrinho. Elas foram removidas para evitar pagamento duplicado!`,
+                    {
+                        icon: '🗑️',
+                        duration: 5000,
+                        style: {
+                            background: '#1e293b',
+                            color: '#fff',
+                            border: '1px solid #334155'
+                        }
                     }
-                  }
                 );
-                
+
                 setIsCheckingOut(false);
-                return; 
+                return;
             }
 
-            toast.loading("Gerando ambiente seguro...", { id: 'checkout-toast', duration: 2000 });
+            // Redireciona para a página de seleção de método de pagamento
+            toggleCart();
+            router.push('/checkout');
 
-            const response = await fetch('/api/checkout', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    items: items,
-                    userId: user.id 
-                }),
-            });
-
-            const data = await response.json();
-
-            if (data.url) {
-                window.location.href = data.url;
-            } else if (data.error === "DUPLICATED_ITEMS") {
-                 toast.error("Alguns itens já pertencem a sua conta. Atualize a página.", { id: 'checkout-toast' });
-                 setIsCheckingOut(false);
-            } else {
-                console.error("Erro na resposta do checkout:", data);
-                toast.error("Ocorreu um erro ao gerar o pagamento. Tente novamente.", { id: 'checkout-toast' });
-                setIsCheckingOut(false);
-            }
         } catch (error) {
             console.error("Erro no checkout:", error);
             toast.error("Erro de conexão. Verifique sua internet.", { id: 'checkout-toast' });
@@ -223,15 +204,15 @@ export default function CartSidebar() {
                             </div>
                         </div>
 
-                        <button 
-                            onClick={handleCheckout} 
+                        <button
+                            onClick={handleCheckout}
                             disabled={isCheckingOut}
                             className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 text-white font-bold py-4 rounded-lg shadow-lg shadow-blue-600/25 transform active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                         >
                             {isCheckingOut ? (
                                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                             ) : (
-                                "FINALIZAR COMPRA \u2192"
+                                "FINALIZAR COMPRA →"
                             )}
                         </button>
                         
