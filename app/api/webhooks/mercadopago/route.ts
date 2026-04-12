@@ -135,20 +135,28 @@ export async function POST(request: Request) {
       .map((id: string) => parseInt(id.trim()))
       .filter((id: number) => !isNaN(id));
 
-    // Tenta pegar e-mail do payer (pode ser nulo em PIX sem conta MP)
-    let customerEmail: string = payment.payer?.email ?? "";
+    // PRIORIDADE 1: e-mail do titular da conta WFX (quem comprou de fato)
+    let customerEmail: string = "";
+    if (userId) {
+      const { data: { user: authUser } } = await supabaseAdmin.auth.admin.getUserById(userId);
+      if (authUser?.email) customerEmail = authUser.email;
+      console.log(`📧 E-mail da conta WFX (userId: ${userId}): "${customerEmail}"`);
+    }
+
+    // PRIORIDADE 2 (fallback): e-mail retornado pelo MercadoPago
+    if (!customerEmail) {
+      customerEmail = payment.payer?.email ?? "";
+      console.log(`📧 Fallback MP payer.email: "${customerEmail}"`);
+    }
+
     const customerName: string = payment.payer?.first_name
       ? `${payment.payer.first_name} ${payment.payer.last_name ?? ""}`.trim()
       : "Cliente";
 
-    // Fallback: busca e-mail real no Supabase Auth usando o userId do metadata
-    if (!customerEmail && userId) {
-      const { data: { user: authUser } } = await supabaseAdmin.auth.admin.getUserById(userId);
-      if (authUser?.email) customerEmail = authUser.email;
-    }
-
-    if (!customerEmail || productIds.length === 0) {
-      console.warn("⚠️ Webhook MP: e-mail ou productIds ausentes no metadata.");
+    // Valida se é realmente um e-mail (MP pode retornar telefone/CPF no campo email)
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail);
+    if (!isValidEmail || productIds.length === 0) {
+      console.warn(`⚠️ Webhook MP: e-mail inválido ("${customerEmail}") ou productIds vazios. Envio abortado.`);
       return NextResponse.json({ received: true });
     }
 
