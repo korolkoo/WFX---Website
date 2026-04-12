@@ -135,12 +135,17 @@ export async function POST(request: Request) {
       .map((id: string) => parseInt(id.trim()))
       .filter((id: number) => !isNaN(id));
 
-    const customerEmail: string =
-      payment.payer?.email ?? "";
-    const customerName: string =
-      payment.payer?.first_name
-        ? `${payment.payer.first_name} ${payment.payer.last_name ?? ""}`.trim()
-        : "Cliente";
+    // Tenta pegar e-mail do payer (pode ser nulo em PIX sem conta MP)
+    let customerEmail: string = payment.payer?.email ?? "";
+    const customerName: string = payment.payer?.first_name
+      ? `${payment.payer.first_name} ${payment.payer.last_name ?? ""}`.trim()
+      : "Cliente";
+
+    // Fallback: busca e-mail real no Supabase Auth usando o userId do metadata
+    if (!customerEmail && userId) {
+      const { data: { user: authUser } } = await supabaseAdmin.auth.admin.getUserById(userId);
+      if (authUser?.email) customerEmail = authUser.email;
+    }
 
     if (!customerEmail || productIds.length === 0) {
       console.warn("⚠️ Webhook MP: e-mail ou productIds ausentes no metadata.");

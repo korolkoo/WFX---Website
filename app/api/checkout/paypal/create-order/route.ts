@@ -57,6 +57,22 @@ export async function POST(request: Request) {
     // ── ZERO-TRUST: busca preços oficiais no Supabase ─────────────────────────
     const itemIds: number[] = items.map((i: any) => i.id);
 
+    // ── TRAVA ANTI-DUPLICATA ──────────────────────────────────────────────────
+    if (userId) {
+      const { data: existingPurchases } = await supabaseAdmin
+        .from("purchases")
+        .select("product_id")
+        .eq("user_id", userId)
+        .in("product_id", itemIds);
+
+      if (existingPurchases && existingPurchases.length > 0) {
+        return NextResponse.json(
+          { error: "DUPLICATED_ITEMS", message: "Você já possui um ou mais itens deste carrinho." },
+          { status: 400 }
+        );
+      }
+    }
+
     const { data: products, error: productsError } = await supabaseAdmin
       .from("products")
       .select("id, title, price")

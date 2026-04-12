@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/store/useCartStore";
 import { createClient } from "@/utils/supabase/client";
@@ -75,6 +75,7 @@ export default function CheckoutPage() {
   const [paid, setPaid] = useState(false);
   const [coverIndex, setCoverIndex] = useState(0);
   const [emailCopied, setEmailCopied] = useState(false);
+  const pixPollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const handleCopyEmail = () => {
     navigator.clipboard.writeText("wfxjoias@gmail.com");
@@ -93,6 +94,23 @@ export default function CheckoutPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login?next=checkout"); return; }
       setUserId(user.id);
+
+      // ── Remove do carrinho itens que o usuário já comprou ──────────────────
+      const cartIds = useCartStore.getState().items.map((i) => i.id);
+      if (cartIds.length === 0) return;
+
+      const { data: alreadyOwned } = await supabase
+        .from("purchases")
+        .select("product_id")
+        .eq("user_id", user.id)
+        .in("product_id", cartIds);
+
+      if (alreadyOwned && alreadyOwned.length > 0) {
+        const ownedIds = new Set(alreadyOwned.map((p: any) => p.product_id));
+        const { removeItem } = useCartStore.getState();
+        ownedIds.forEach((id) => removeItem(id as number));
+        toast("Alguns itens já comprados foram removidos do carrinho.", { icon: "ℹ️" });
+      }
     };
     getUser();
   }, [router]);
@@ -100,6 +118,34 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (isMounted && items.length === 0 && !paid) router.push("/");
   }, [items, router, paid, isMounted]);
+
+  // Polling de status do PIX: verifica a cada 4s se o pagamento foi aprovado
+  useEffect(() => {
+    if (!pixData?.payment_id) return;
+
+    // Cancela polling anterior se existir
+    if (pixPollingRef.current) clearInterval(pixPollingRef.current);
+
+    pixPollingRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/checkout/pix/status?payment_id=${pixData.payment_id}`);
+        const data = await res.json();
+        if (data.status === "approved") {
+          clearInterval(pixPollingRef.current!);
+          pixPollingRef.current = null;
+          setPaid(true);
+          clearCart();
+          router.push("/sucesso?method=pix");
+        }
+      } catch {
+        // Erro de rede — continua tentando
+      }
+    }, 4000);
+
+    return () => {
+      if (pixPollingRef.current) clearInterval(pixPollingRef.current);
+    };
+  }, [pixData, clearCart, router]);
 
   if (!isMounted) {
     return (
